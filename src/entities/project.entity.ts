@@ -1,0 +1,45 @@
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
+import type { ProjectType, WeekDay } from "../common/types";
+import { Employee } from "./employee.entity";
+import { Phase } from "./phase.entity";
+import { Task } from "./task.entity";
+
+@Entity("projects")
+export class Project {
+  @PrimaryColumn("varchar")
+  id: string;
+
+  @Column("varchar")
+  name: string;
+
+  @Column("varchar")
+  type: ProjectType;
+
+  @Column("varchar")
+  customer: string;
+
+  @Column("varchar", { name: "owner_id", nullable: true })
+  ownerId: string | null;
+
+  @ManyToOne(() => Employee, { nullable: true, onDelete: "SET NULL" })
+  @JoinColumn({ name: "owner_id" })
+  owner: Employee | null;
+
+  @Column("date", { name: "start_date" })
+  startDate: string;
+
+  @Column("date", { name: "end_date" })
+  endDate: string;
+
+  @Column("date", { name: "created_at" })
+  createdAt: string;
+
+  @Column("int", { array: true, name: "week_off" })
+  weekOff: WeekDay[];
+
+  @OneToMany(() => Phase, (phase) => phase.project, { cascade: true })
+  phases: Phase[];
+
+  @OneToMany(() => Task, (task) => task.project, { cascade: true })
+  tasks: Task[];
+}
