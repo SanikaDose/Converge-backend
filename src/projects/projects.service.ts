@@ -36,8 +36,9 @@ function toPhasesLite(phases: Phase[]) {
 
 function toMeta(project: Project) {
   return {
-    name: project.name, type: project.type, customer: project.customer, owner: project.ownerId,
-    startDate: project.startDate, endDate: project.endDate, createdAt: project.createdAt, weekOff: project.weekOff,
+    name: project.name, type: project.type, customer: project.customer, location: project.location,
+    owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
+    createdAt: project.createdAt, weekOff: project.weekOff,
   };
 }
 
@@ -87,8 +88,8 @@ export class ProjectsService {
     const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff);
 
     const project = this.projectRepo.create({
-      id, name: dto.name, type: dto.type, customer: dto.customer, ownerId: dto.owner || null,
-      startDate: dto.startDate, endDate: dto.endDate, createdAt: todayISO(), weekOff,
+      id, name: dto.name, type: dto.type, customer: dto.customer, location: dto.location || null,
+      ownerId: dto.owner || null, startDate: dto.startDate, endDate: dto.endDate, createdAt: todayISO(), weekOff,
     });
     await this.projectRepo.save(project);
     await this.phaseRepo.save(plainPhases.map(p => this.phaseRepo.create({ ...p, projectId: id })));
@@ -105,6 +106,7 @@ export class ProjectsService {
       if (dto.meta.name !== undefined) project.name = dto.meta.name;
       if (dto.meta.type !== undefined) project.type = dto.meta.type;
       if (dto.meta.customer !== undefined) project.customer = dto.meta.customer;
+      if (dto.meta.location !== undefined) project.location = dto.meta.location;
       if (dto.meta.owner !== undefined) project.ownerId = dto.meta.owner;
       if (dto.meta.startDate !== undefined) project.startDate = dto.meta.startDate;
       if (dto.meta.endDate !== undefined) project.endDate = dto.meta.endDate;

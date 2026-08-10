@@ -18,6 +18,9 @@ export class Project {
   @Column("varchar")
   customer: string;
 
+  @Column("varchar", { nullable: true })
+  location: string | null;
+
   @Column("varchar", { name: "owner_id", nullable: true })
   ownerId: string | null;
 

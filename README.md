@@ -44,6 +44,7 @@ Copy `.env.example` to `.env` and fill in real values. Key variables:
 
 | Method | Path | Notes |
 |---|---|---|
+| POST | `/auth/login` | `{ employeeCode, password }` → the employee's profile, or a generic 401 |
 | GET | `/projects` | Portfolio index — live-computed stats per project |
 | POST | `/projects` | Create — generates the full 12-phase/62-task plan |
 | GET | `/projects/:id` | Full detail — `{ id, meta, phases, tasks }` |
@@ -54,6 +55,26 @@ Copy `.env.example` to `.env` and fill in real values. Key variables:
 | GET | `/team-performance` | Per-employee task load/completion, aggregated live |
 | GET | `/dashboard-summary` | Portfolio baseline snapshot (captured once, for "vs last month" trend captions) |
 | GET | `/employees` | `{ teams, employees }` org directory |
+
+### Sign-in credentials (development)
+
+The seeder gives every employee an `employeeCode` (initials + a global sequence number, e.g.
+`VP001`, `SD003`) and hashes one shared **development** password for all of them:
+
+```
+Converge@123
+```
+
+Codes are matched case-insensitively. Team Leads seed with `appRole: "Admin"`, everyone else
+`"Developer"`. `SeedService.ensureCredentials()` re-runs on every boot and fills only missing
+columns, so it backfills older rows without overwriting anything already set.
+
+Run `psql … -c "SELECT employee_code, name, app_role FROM employees ORDER BY employee_code;"`
+for the full list.
+
+> **This is not production auth.** Passwords are genuinely bcrypt-verified, but no other
+> endpoint requires a session and there's no token — anything below can be called
+> unauthenticated. Add a real session token plus a Nest guard before exposing this anywhere.
 
 ## Structure
 

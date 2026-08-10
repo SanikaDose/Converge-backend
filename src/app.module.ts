@@ -8,6 +8,7 @@ import { Phase } from "./entities/phase.entity";
 import { Task } from "./entities/task.entity";
 import { Ticket } from "./entities/ticket.entity";
 import { DashboardBaseline } from "./entities/dashboard-baseline.entity";
+import { AuthModule } from "./auth/auth.module";
 import { EmployeesModule } from "./employees/employees.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { TicketsModule } from "./tickets/tickets.module";
@@ -35,6 +36,7 @@ import { SeedModule } from "./seed/seed.module";
         synchronize: true,
       }),
     }),
+    AuthModule,
     EmployeesModule,
     ProjectsModule,
     TicketsModule,

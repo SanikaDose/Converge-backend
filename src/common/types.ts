@@ -12,6 +12,8 @@ export type ProjectType = "Product" | "Solution";
 export type ProjectBucket = "Delayed" | "In Progress" | "On Track";
 export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed";
 export type OrgRole = "Team Lead" | "Developer";
+/** Application access role — distinct from OrgRole (the directory job title). */
+export type AppRole = "Admin" | "Developer";
 
 /** 0 = Sunday … 6 = Saturday, matching JS Date#getUTCDay(). */
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;

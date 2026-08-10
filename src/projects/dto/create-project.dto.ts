@@ -17,6 +17,10 @@ export class CreateProjectDto {
 
   @IsString()
   @IsOptional()
+  location?: string | null;
+
+  @IsString()
+  @IsOptional()
   owner?: string | null;
 
   @IsString()

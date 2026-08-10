@@ -9,6 +9,8 @@ import { Phase } from "../entities/phase.entity";
 import { Task } from "../entities/task.entity";
 import { Ticket } from "../entities/ticket.entity";
 import { SEED_TEAMS } from "../common/org-seed-data";
+import { buildSeedCredentials, DEFAULT_PASSWORD } from "../common/credentials";
+import * as bcrypt from "bcryptjs";
 import { buildProjectPhases, buildTasks, computeAchievement, type PlainPhase, type PlainTask } from "../common/business-logic";
 import { addWorkingDays, DEFAULT_WEEK_OFF, todayISO } from "../common/date-utils";
 import { genId } from "../common/template";
@@ -78,14 +80,39 @@ export class SeedService implements OnModuleInit {
     const projectCount = await this.projectRepo.count();
     if (projectCount > 0) {
       this.logger.log("Projects table already has data — skipping seed.");
+      // Still runs: employees seeded before sign-in existed have no
+      // employeeCode/passwordHash, and nobody could log in without a
+      // backfill. Idempotent — only fills columns that are still null.
+      await this.ensureCredentials();
       return;
     }
     await this.run();
   }
 
+  /**
+   * Gives every seeded employee a sign-in code, the shared dev password
+   * hash, and an app role — filling only what's missing, so re-running
+   * never clobbers a credential that's already set.
+   */
+  async ensureCredentials(): Promise<void> {
+    const credentials = buildSeedCredentials();
+    let updated = 0;
+    for (const cred of credentials) {
+      const employee = await this.employeeRepo.findOneBy({ id: cred.id });
+      if (!employee) continue;
+      let dirty = false;
+      if (!employee.employeeCode) { employee.employeeCode = cred.employeeCode; dirty = true; }
+      if (!employee.appRole) { employee.appRole = cred.appRole; dirty = true; }
+      if (!employee.passwordHash) { employee.passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10); dirty = true; }
+      if (dirty) { await this.employeeRepo.save(employee); updated++; }
+    }
+    if (updated) this.logger.log(`Provisioned sign-in credentials for ${updated} employee(s).`);
+  }
+
   async run(): Promise<void> {
     this.logger.log("Seeding organization directory + demo projects/tickets…");
     await this.seedOrg();
+    await this.ensureCredentials();
     const idA = await this.seedProjectA();
     const idB = await this.seedProjectB();
     await this.seedTickets(idA, idB);
