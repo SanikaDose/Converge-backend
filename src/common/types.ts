@@ -18,11 +18,16 @@ export type AppRole = "Admin" | "Developer";
 /** 0 = Sunday … 6 = Saturday, matching JS Date#getUTCDay(). */
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-/** One "critical point" on a task's checklist. */
+/**
+ * One "critical point" on a task's checklist. Timestamps are optional only
+ * for items stored before they existed; anything created now sets both.
+ */
 export interface ChecklistItem {
   id: string;
   text: string;
   done: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface HistoryEntry {
