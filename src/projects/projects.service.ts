@@ -124,6 +124,15 @@ export class ProjectsService {
     return this.findOneDetail(id);
   }
 
+  // Phases/tasks cascade at the DB level (onDelete: "CASCADE" on their
+  // project FK — see the entities), so removing the project row is enough.
+  async remove(id: string) {
+    const project = await this.projectRepo.findOneBy({ id });
+    if (!project) throw new NotFoundException("Project not found.");
+    await this.projectRepo.remove(project);
+    return { id };
+  }
+
   // Full-sync semantics: the frontend always PATCHes the complete
   // phases/tasks arrays it holds in React state (add/delete/reorder/edit
   // all go through this same path — see ProjectDetail.tsx), so "replace
