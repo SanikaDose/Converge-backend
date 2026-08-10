@@ -23,7 +23,7 @@ function toPlainTask(t: Task): PlainTask {
     assignedTo: t.assignedTo, priority: t.priority, dependencies: t.dependencies,
     dayOffset: t.dayOffset, duration: t.duration, plannedStart: t.plannedStart, plannedFinish: t.plannedFinish,
     actualStart: t.actualStart, actualFinish: t.actualFinish, status: t.status, history: t.history,
-    achievement: t.achievement, pendingChange: t.pendingChange,
+    achievement: t.achievement, pendingChange: t.pendingChange, checklist: t.checklist ?? [],
   };
 }
 
@@ -152,6 +152,7 @@ export class ProjectsService {
       pendingChange: (t.pendingChange as Task["pendingChange"]) ?? null,
       achievement: (t.achievement as Task["achievement"]) ?? null,
       history: (t.history as Task["history"]) ?? [],
+      checklist: (t.checklist as Task["checklist"]) ?? [],
     })));
   }
 }

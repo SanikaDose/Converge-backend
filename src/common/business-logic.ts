@@ -6,7 +6,7 @@
  */
 import { addWorkingDays, businessDaysBetween, todayISO } from "./date-utils";
 import { TEMPLATE, genId } from "./template";
-import type { Achievement, HistoryEntry, PendingChange, Priority, StatusColorKey, TaskStatus, WeekDay } from "./types";
+import type { Achievement, ChecklistItem, HistoryEntry, PendingChange, Priority, StatusColorKey, TaskStatus, WeekDay } from "./types";
 
 export interface PlainPhase {
   id: string;
@@ -34,6 +34,7 @@ export interface PlainTask {
   history: HistoryEntry[];
   achievement?: Achievement | null;
   pendingChange?: PendingChange | null;
+  checklist?: ChecklistItem[];
 }
 
 /* ----------------------------- phases & tasks ----------------------------- */

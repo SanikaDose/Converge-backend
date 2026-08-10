@@ -38,6 +38,7 @@ export interface TaskPatch {
   pendingChange?: unknown;
   achievement?: unknown;
   history?: unknown[];
+  checklist?: unknown[];
 }
 
 /**

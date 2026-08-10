@@ -18,6 +18,13 @@ export type AppRole = "Admin" | "Developer";
 /** 0 = Sunday … 6 = Saturday, matching JS Date#getUTCDay(). */
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+/** One "critical point" on a task's checklist. */
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface HistoryEntry {
   ts: string;
   field: string;
