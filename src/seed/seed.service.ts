@@ -9,7 +9,7 @@ import { Phase } from "../entities/phase.entity";
 import { Task } from "../entities/task.entity";
 import { Ticket } from "../entities/ticket.entity";
 import { SEED_TEAMS } from "../common/org-seed-data";
-import { buildSeedCredentials, DEFAULT_PASSWORD } from "../common/credentials";
+import { appRoleFor, buildSeedCredentials, DEFAULT_PASSWORD } from "../common/credentials";
 import * as bcrypt from "bcryptjs";
 import { buildProjectPhases, buildTasks, computeAchievement, type PlainPhase, type PlainTask } from "../common/business-logic";
 import { addWorkingDays, DEFAULT_WEEK_OFF, todayISO } from "../common/date-utils";
@@ -80,13 +80,66 @@ export class SeedService implements OnModuleInit {
     const projectCount = await this.projectRepo.count();
     if (projectCount > 0) {
       this.logger.log("Projects table already has data — skipping seed.");
-      // Still runs: employees seeded before sign-in existed have no
-      // employeeCode/passwordHash, and nobody could log in without a
-      // backfill. Idempotent — only fills columns that are still null.
+      // Both still run: the demo projects are seeded once, but the org
+      // directory is a living list — people get added and roles change, and
+      // an existing database would otherwise never see those edits.
+      await this.ensureOrgDirectory();
+      // Employees seeded before sign-in existed have no employeeCode/
+      // passwordHash, and nobody could log in without a backfill.
+      // Idempotent — only fills columns that are still null.
       await this.ensureCredentials();
       return;
     }
     await this.run();
+  }
+
+  /**
+   * Reconciles the teams/employees tables against SEED_TEAMS on every boot,
+   * so that file stays the single source of truth for the directory:
+   * new teams and people are inserted, and existing rows have their name,
+   * org role, app role, and team brought back in line.
+   *
+   * Safe to overwrite those four columns because nothing in the app edits
+   * them — there's no employee-management UI. Sign-in columns
+   * (employeeCode/passwordHash) are deliberately left alone here and
+   * handled by ensureCredentials, which only ever fills blanks.
+   *
+   * Note this does NOT delete employees missing from SEED_TEAMS: they may
+   * still be referenced as a task assignee, project owner, or ticket
+   * assignee, and removing them would orphan that data.
+   */
+  async ensureOrgDirectory(): Promise<void> {
+    let added = 0;
+    let updated = 0;
+
+    for (const team of SEED_TEAMS) {
+      const existingTeam = await this.teamRepo.findOneBy({ id: team.id });
+      if (!existingTeam || existingTeam.name !== team.name) {
+        await this.teamRepo.save(this.teamRepo.create({ id: team.id, name: team.name }));
+      }
+
+      for (const member of team.members) {
+        const employee = await this.employeeRepo.findOneBy({ id: member.id });
+        const appRole = appRoleFor(member.role);
+        if (!employee) {
+          await this.employeeRepo.save(this.employeeRepo.create({
+            id: member.id, name: member.name, role: member.role, teamId: team.id, appRole,
+          }));
+          added++;
+          continue;
+        }
+        if (employee.name === member.name && employee.role === member.role
+          && employee.teamId === team.id && employee.appRole === appRole) continue;
+        employee.name = member.name;
+        employee.role = member.role;
+        employee.teamId = team.id;
+        employee.appRole = appRole;
+        await this.employeeRepo.save(employee);
+        updated++;
+      }
+    }
+
+    if (added || updated) this.logger.log(`Org directory synced — ${added} added, ${updated} updated.`);
   }
 
   /**
@@ -250,12 +303,14 @@ export class SeedService implements OnModuleInit {
         description: "Recording cuts out during the scope walkthrough — re-share the deck separately.",
         projectId: projectAId, projectName: projectA!.name, phase: "01 · Project Initialization",
         assignedTo: null, priority: "Low", status: "Resolved", createdAt: today,
+        resolvedAt: today,
       }),
       this.ticketRepo.create({
         id: genId("tkt"), seq: 4, title: "Palletizer gripper misalignment on SKU changeover",
         description: "Gripper offset drifts ~2mm after a SKU changeover — recalibration needed each shift.",
         projectId: projectBId, projectName: projectB!.name, phase: "06 · Automation",
         assignedTo: "sanket-chavhan", priority: "High", status: "Closed", createdAt: startB,
+        resolvedAt: addWorkingDays(startB, 3),
       }),
     ]);
   }

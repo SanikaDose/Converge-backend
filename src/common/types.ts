@@ -5,15 +5,20 @@
  * Kept framework-agnostic (no TypeORM/Nest imports) on purpose.
  */
 
-export type TaskStatus = "Not Started" | "In Progress" | "Pending Approval" | "Delayed" | "Completed";
-export type StatusColorKey = "green" | "amber" | "red" | "slate" | "violet";
+export type TaskStatus = "Not Started" | "In Progress" | "Pending Approval" | "Delayed" | "Blocked" | "Completed";
+export type StatusColorKey = "green" | "amber" | "red" | "slate" | "violet" | "orange";
 export type Priority = "Low" | "Medium" | "High" | "Critical";
 export type ProjectType = "Product" | "Solution";
 export type ProjectBucket = "Delayed" | "In Progress" | "On Track";
 export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed";
-export type OrgRole = "Team Lead" | "Developer";
+/**
+ * Directory role. Replaced the earlier "Team Lead" | "Developer" pair: the
+ * directory now distinguishes only who administers the app from everyone
+ * else, so the two roles line up 1:1 with AppRole below.
+ */
+export type OrgRole = "Admin" | "User";
 /** Application access role — distinct from OrgRole (the directory job title). */
-export type AppRole = "Admin" | "Developer";
+export type AppRole = "Admin" | "User";
 
 /** 0 = Sunday … 6 = Saturday, matching JS Date#getUTCDay(). */
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;

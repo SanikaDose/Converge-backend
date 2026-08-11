@@ -28,4 +28,7 @@ export class UpdateTicketDto {
   @IsIn(STATUSES)
   @IsOptional()
   status?: TicketStatus;
+
+  @IsOptional()
+  actionPoints?: unknown[];
 }

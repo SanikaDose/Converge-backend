@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
-import type { Priority, TicketStatus } from "../common/types";
+import type { ChecklistItem, Priority, TicketStatus } from "../common/types";
 import { Employee } from "./employee.entity";
 import { Project } from "./project.entity";
 
@@ -48,4 +48,17 @@ export class Ticket {
 
   @Column("date", { name: "created_at" })
   createdAt: string;
+
+  // Stamped by TicketsService.update when the ticket first reaches a terminal
+  // status (Resolved/Closed), and cleared if it's reopened — so "how long did
+  // this take to close" is answerable without replaying a status history.
+  // Nullable because an open ticket genuinely has no closing date yet.
+  @Column("date", { name: "resolved_at", nullable: true })
+  resolvedAt: string | null;
+
+  // Same shape/intent as a task's "critical points" checklist (see
+  // Task.checklist) — free-form "what was done about this" entries logged
+  // against the ticket, not just its title/description.
+  @Column("jsonb", { name: "action_points", default: () => "'[]'" })
+  actionPoints: ChecklistItem[];
 }

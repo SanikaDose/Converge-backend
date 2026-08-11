@@ -95,7 +95,7 @@ export const TEMPLATE: TemplatePhase[] = [
   ]},
 ];
 
-export const STATUS_OPTIONS = ["Not Started", "In Progress", "Pending Approval", "Delayed", "Completed"] as const;
+export const STATUS_OPTIONS = ["Not Started", "In Progress", "Pending Approval", "Delayed", "Blocked", "Completed"] as const;
 export const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"] as const;
 export const MAX_WEEK_OFF_DAYS = 2;
 

@@ -16,9 +16,9 @@ export interface AuthedUser {
   id: string;
   name: string;
   employeeCode: string;
-  /** Org job title ("Team Lead" / "Developer"). */
+  /** Org job title ("Admin" / "User"). */
   role: string;
-  /** Application access role ("Admin" / "Developer"). */
+  /** Application access role ("Admin" / "User"). */
   appRole: string;
   teamId: string;
   team: string;
@@ -52,7 +52,7 @@ export class AuthService {
       name: employee.name,
       employeeCode: employee.employeeCode!,
       role: employee.role,
-      appRole: employee.appRole ?? "Developer",
+      appRole: employee.appRole ?? "User",
       teamId: employee.teamId,
       team: employee.team?.name ?? "",
     };

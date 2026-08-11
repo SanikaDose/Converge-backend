@@ -29,9 +29,12 @@ export function employeeCodeFor(name: string, sequence: number): string {
   return `${initials}${String(sequence).padStart(3, "0")}`;
 }
 
-/** Team Leads administer their team's projects; everyone else signs in as Developer. */
+/**
+ * Directory role and access role are 1:1 now — the mapping is kept as a
+ * function anyway so the two can diverge again without touching callers.
+ */
 export function appRoleFor(orgRole: OrgRole): AppRole {
-  return orgRole === "Team Lead" ? "Admin" : "Developer";
+  return orgRole === "Admin" ? "Admin" : "User";
 }
 
 export interface SeedCredential {
