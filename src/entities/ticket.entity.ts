@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
 import type { ChecklistItem, Priority, TicketStatus } from "../common/types";
 import { Employee } from "./employee.entity";
 import { Project } from "./project.entity";
@@ -17,7 +17,11 @@ export class Ticket {
   @Column("text", { default: "" })
   description: string;
 
+  // Indexed like tasks.project_id and phases.project_id: deleting a project
+  // cascades here, and Postgres scans the child table to find the rows
+  // unless the FK column is indexed.
   @Column("varchar", { name: "project_id" })
+  @Index()
   projectId: string;
 
   @ManyToOne(() => Project, { onDelete: "CASCADE" })

@@ -109,20 +109,31 @@ export class SeedService implements OnModuleInit {
    * assignee, and removing them would orphan that data.
    */
   async ensureOrgDirectory(): Promise<void> {
+    // Read the whole directory once and diff in memory. Doing a findOneBy
+    // per member meant one query each on every boot, and only a handful of
+    // rows ever actually differ.
+    const [existingTeams, existingEmployees] = await Promise.all([
+      this.teamRepo.find(),
+      this.employeeRepo.find(),
+    ]);
+    const teamById = new Map(existingTeams.map(t => [t.id, t]));
+    const employeeById = new Map(existingEmployees.map(e => [e.id, e]));
+
+    const teamsToSave: Team[] = [];
+    const employeesToSave: Employee[] = [];
     let added = 0;
-    let updated = 0;
 
     for (const team of SEED_TEAMS) {
-      const existingTeam = await this.teamRepo.findOneBy({ id: team.id });
+      const existingTeam = teamById.get(team.id);
       if (!existingTeam || existingTeam.name !== team.name) {
-        await this.teamRepo.save(this.teamRepo.create({ id: team.id, name: team.name }));
+        teamsToSave.push(this.teamRepo.create({ id: team.id, name: team.name }));
       }
 
       for (const member of team.members) {
-        const employee = await this.employeeRepo.findOneBy({ id: member.id });
         const appRole = appRoleFor(member.role);
+        const employee = employeeById.get(member.id);
         if (!employee) {
-          await this.employeeRepo.save(this.employeeRepo.create({
+          employeesToSave.push(this.employeeRepo.create({
             id: member.id, name: member.name, role: member.role, teamId: team.id, appRole,
           }));
           added++;
@@ -134,11 +145,16 @@ export class SeedService implements OnModuleInit {
         employee.role = member.role;
         employee.teamId = team.id;
         employee.appRole = appRole;
-        await this.employeeRepo.save(employee);
-        updated++;
+        employeesToSave.push(employee);
       }
     }
 
+    // Teams first: employees carry a FK to them, so a brand-new team has to
+    // exist before its members can be inserted.
+    if (teamsToSave.length) await this.teamRepo.save(teamsToSave);
+    if (employeesToSave.length) await this.employeeRepo.save(employeesToSave);
+
+    const updated = employeesToSave.length - added;
     if (added || updated) this.logger.log(`Org directory synced — ${added} added, ${updated} updated.`);
   }
 
@@ -149,17 +165,28 @@ export class SeedService implements OnModuleInit {
    */
   async ensureCredentials(): Promise<void> {
     const credentials = buildSeedCredentials();
-    let updated = 0;
+    // Same one-read-then-diff shape as ensureOrgDirectory, for the same
+    // reason. Steady state is zero writes, so this usually costs one SELECT.
+    const employees = await this.employeeRepo.find();
+    const employeeById = new Map(employees.map(e => [e.id, e]));
+
+    const toSave: Employee[] = [];
     for (const cred of credentials) {
-      const employee = await this.employeeRepo.findOneBy({ id: cred.id });
+      const employee = employeeById.get(cred.id);
       if (!employee) continue;
       let dirty = false;
       if (!employee.employeeCode) { employee.employeeCode = cred.employeeCode; dirty = true; }
       if (!employee.appRole) { employee.appRole = cred.appRole; dirty = true; }
+      // bcrypt is intentionally slow — only hash for rows that actually
+      // need one, never once per employee per boot.
       if (!employee.passwordHash) { employee.passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10); dirty = true; }
-      if (dirty) { await this.employeeRepo.save(employee); updated++; }
+      if (dirty) toSave.push(employee);
     }
-    if (updated) this.logger.log(`Provisioned sign-in credentials for ${updated} employee(s).`);
+
+    if (toSave.length) {
+      await this.employeeRepo.save(toSave);
+      this.logger.log(`Provisioned sign-in credentials for ${toSave.length} employee(s).`);
+    }
   }
 
   async run(): Promise<void> {

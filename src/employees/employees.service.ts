@@ -21,7 +21,14 @@ export class EmployeesService {
   async findAll() {
     const [teamRows, employeeRows] = await Promise.all([
       this.teamRepo.find({ order: { id: "ASC" } }),
-      this.employeeRepo.find({ order: { id: "ASC" } }),
+      // Explicit column list: the mapping below already excludes
+      // passwordHash, but not selecting it means the hash never leaves
+      // Postgres at all — one less place it can be logged or leaked by a
+      // future change to this method.
+      this.employeeRepo.find({
+        order: { id: "ASC" },
+        select: { id: true, name: true, role: true, teamId: true },
+      }),
     ]);
 
     const teamNameById = new Map(teamRows.map(t => [t.id, t.name]));
