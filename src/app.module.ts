@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
+import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Team } from "./entities/team.entity";
 import { Employee } from "./entities/employee.entity";
@@ -19,22 +19,24 @@ import { SeedModule } from "./seed/seed.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: "postgres" as const,
-        host: config.get<string>("DB_HOST", "localhost"),
-        port: config.get<number>("DB_PORT", 5432),
-        username: config.get<string>("DB_USERNAME", "root"),
-        password: config.get<string>("DB_PASSWORD", ""),
-        database: config.get<string>("DB_NAME", "converge"),
-        entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline],
-        // Fine for this app's mock-to-real-DB migration stage — no
-        // migration files to maintain yet. Swap for real migrations
-        // before this ever points at a database with data worth keeping.
-        synchronize: true,
-      }),
+    TypeOrmModule.forRoot({
+      type: "postgres",
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      // Hosted Postgres (Render, Railway, Neon, Supabase) requires TLS and
+      // refuses plaintext connections. `rejectUnauthorized: false` accepts
+      // their managed certificate chain, which those providers issue rather
+      // than a public CA. Off by default so a local Postgres still connects.
+      ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
+      entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline],
+      // Opt-in, and deliberately OFF unless asked for: synchronize reshapes
+      // the schema from the entities on every boot, so a renamed property
+      // silently drops the column — and its data — in production. Enable it
+      // for the first deploy to create the tables, then turn it off.
+      synchronize: process.env.DB_SYNCHRONIZE === "true",
     }),
     AuthModule,
     EmployeesModule,
