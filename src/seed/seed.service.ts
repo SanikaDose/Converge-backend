@@ -13,7 +13,7 @@ import { appRoleFor, buildSeedCredentials, DEFAULT_PASSWORD } from "../utils/cre
 import * as bcrypt from "bcryptjs";
 import { buildProjectPhases, buildTasks, computeAchievement, type PlainPhase, type PlainTask } from "../utils/business-logic";
 import { addWorkingDays, DEFAULT_WEEK_OFF, todayISO } from "../utils/date-utils";
-import { genId } from "../utils/template";
+import { newId } from "../utils/template";
 import type { HistoryEntry, WeekDay } from "../utils/types";
 
 const EMPLOYEE_CYCLE = SEED_TEAMS.flatMap(t => t.members.map(m => m.id));
@@ -253,7 +253,7 @@ export class SeedService implements OnModuleInit {
     reqReview.assignedTo = "prachi-jamgaonkar";
     reqReview.status = "Pending Approval";
     reqReview.pendingChange = {
-      id: genId("chg"), changes: { duration: 2, plannedFinish: addWorkingDays(reqReview.plannedFinish, 1, weekOffA) },
+      id: newId(), changes: { duration: 2, plannedFinish: addWorkingDays(reqReview.plannedFinish, 1, weekOffA) },
       previousStatus: "Not Started" as const, requestedBy: "prachi-jamgaonkar", requestedByName: "Prachi Jamgaonkar",
       requestedAt: new Date().toISOString(), reason: "Customer added two extra interfaces to the spec — need an extra day to review.",
     };
@@ -268,7 +268,7 @@ export class SeedService implements OnModuleInit {
     plcProgram.history = [historyEntry("Completed")];
     plcProgram.achievement = computeAchievement(plcProgram, weekOffA);
 
-    const id = genId("proj");
+    const id = newId();
     await this.projectRepo.save(this.projectRepo.create({
       id, name: "TE Connectivity — Robotic Connector Inspection Cell", type: "Product",
       customer: "TE Connectivity", ownerId: "viren-patil", startDate: startA,
@@ -295,7 +295,7 @@ export class SeedService implements OnModuleInit {
     const tasksB = buildTasks(startB, phasesB, weekOffB);
     simulateProgress(tasksB, today, weekOffB);
 
-    const id = genId("proj");
+    const id = newId();
     await this.projectRepo.save(this.projectRepo.create({
       id, name: "Vertex Robotics — Automated Palletizing Solution", type: "Solution",
       customer: "Vertex Robotics", ownerId: "bharat-vinchwekar", startDate: startB,
@@ -314,26 +314,26 @@ export class SeedService implements OnModuleInit {
 
     await this.ticketRepo.save([
       this.ticketRepo.create({
-        id: genId("tkt"), seq: 1, title: "Camera trigger drift on Station 2",
+        id: newId(), seq: 1, title: "Camera trigger drift on Station 2",
         description: "Intermittent double-trigger under high ambient vibration.",
         projectId: projectAId, projectName: projectA!.name, phase: "05 · Vision Software",
         assignedTo: "krishna-kumbhar", priority: "High", status: "Open", createdAt: today,
       }),
       this.ticketRepo.create({
-        id: genId("tkt"), seq: 2, title: "Backend API timeout under load",
+        id: newId(), seq: 2, title: "Backend API timeout under load",
         description: "Requests over ~50 req/s start timing out during the integration test rig.",
         projectId: projectAId, projectName: projectA!.name, phase: "04 · Software",
         assignedTo: "shubham-tanapure", priority: "Medium", status: "In Progress", createdAt: today,
       }),
       this.ticketRepo.create({
-        id: genId("tkt"), seq: 3, title: "Kickoff meeting recording missing slide 4",
+        id: newId(), seq: 3, title: "Kickoff meeting recording missing slide 4",
         description: "Recording cuts out during the scope walkthrough — re-share the deck separately.",
         projectId: projectAId, projectName: projectA!.name, phase: "01 · Project Initialization",
         assignedTo: null, priority: "Low", status: "Resolved", createdAt: today,
         resolvedAt: today,
       }),
       this.ticketRepo.create({
-        id: genId("tkt"), seq: 4, title: "Palletizer gripper misalignment on SKU changeover",
+        id: newId(), seq: 4, title: "Palletizer gripper misalignment on SKU changeover",
         description: "Gripper offset drifts ~2mm after a SKU changeover — recalibration needed each shift.",
         projectId: projectBId, projectName: projectB!.name, phase: "06 · Automation",
         assignedTo: "sanket-chavhan", priority: "High", status: "Closed", createdAt: startB,

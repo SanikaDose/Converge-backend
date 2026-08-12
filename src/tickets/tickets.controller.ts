@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from "@nestjs/common";
 import { apiControllerPath } from "../constants/routeConstants";
 import { TicketsService } from "./tickets.service";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
@@ -20,7 +20,7 @@ export class TicketsController {
   }
 
   @Patch(apiControllerPath.tickets.updateById)
-  update(@Param("id") id: string, @Body() dto: UpdateTicketDto): Promise<TicketInterface> {
+  update(@Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateTicketDto): Promise<TicketInterface> {
     return this.ticketsService.update(id, dto);
   }
 }

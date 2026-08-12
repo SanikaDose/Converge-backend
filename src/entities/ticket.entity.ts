@@ -5,7 +5,7 @@ import { Project } from "./project.entity";
 
 @Entity("tickets")
 export class Ticket {
-  @PrimaryColumn("varchar")
+  @PrimaryColumn("uuid")
   id: string;
 
   @Column("int")
@@ -20,7 +20,7 @@ export class Ticket {
   // Indexed like tasks.project_id and phases.project_id: deleting a project
   // cascades here, and Postgres scans the child table to find the rows
   // unless the FK column is indexed.
-  @Column("varchar", { name: "project_id" })
+  @Column("uuid", { name: "project_id" })
   @Index()
   projectId: string;
 

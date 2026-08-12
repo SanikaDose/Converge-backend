@@ -9,7 +9,7 @@ import {
   type PlainPhase, type PlainTask,
 } from "../utils/business-logic";
 import { todayISO, DEFAULT_WEEK_OFF } from "../utils/date-utils";
-import { genId } from "../utils/template";
+import { newId } from "../utils/template";
 import { projectMessages } from "../constants/messages";
 import type { CreateProjectDto } from "./dto/create-project.dto";
 import type { UpdateProjectDto } from "./dto/update-project.dto";
@@ -115,7 +115,7 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto) {
     const weekOff = dto.weekOff && dto.weekOff.length ? dto.weekOff.slice(0, 2) : DEFAULT_WEEK_OFF;
-    const id = genId("proj");
+    const id = newId();
     const plainPhases = buildProjectPhases();
     const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff);
 

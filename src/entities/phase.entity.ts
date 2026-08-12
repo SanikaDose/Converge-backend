@@ -3,10 +3,10 @@ import { Project } from "./project.entity";
 
 @Entity("phases")
 export class Phase {
-  @PrimaryColumn("varchar")
+  @PrimaryColumn("uuid")
   id: string;
 
-  @Column("varchar", { name: "project_id" })
+  @Column("uuid", { name: "project_id" })
   @Index()
   projectId: string;
 

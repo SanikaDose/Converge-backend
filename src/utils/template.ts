@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 /**
  * The 12-phase / 62-task project template — ported verbatim from
  * converge_frontend/lib/data.ts so newly-created projects (and the seeded
@@ -99,6 +100,18 @@ export const STATUS_OPTIONS = ["Not Started", "In Progress", "Pending Approval",
 export const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"] as const;
 export const MAX_WEEK_OFF_DAYS = 2;
 
-export function genId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+/**
+ * Primary keys for projects, phases, tasks, and tickets.
+ *
+ * Replaced a hand-rolled `${prefix}_${Date.now()}_${random}` scheme whose
+ * uniqueness rested on two ids never sharing a millisecond *and* a 6-char
+ * random suffix. `crypto.randomUUID()` is a real v4 UUID, and the columns
+ * are a native Postgres `uuid` rather than varchar.
+ *
+ * Generated here rather than by the database (`@PrimaryGeneratedColumn`)
+ * because a project's phases and tasks are built in memory referencing each
+ * other's ids before any row is inserted — see buildProjectPhases/buildTasks.
+ */
+export function newId(): string {
+  return randomUUID();
 }

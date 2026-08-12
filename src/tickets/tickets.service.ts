@@ -3,7 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Ticket } from "../entities/ticket.entity";
 import { Project } from "../entities/project.entity";
-import { genId } from "../utils/template";
+import { newId } from "../utils/template";
 import { todayISO } from "../utils/date-utils";
 import { ticketMessages } from "../constants/messages";
 import type { CreateTicketDto } from "./dto/create-ticket.dto";
@@ -26,7 +26,7 @@ export class TicketsService {
 
     const maxSeq = await this.ticketRepo.maximum("seq");
     const ticket = this.ticketRepo.create({
-      id: genId("tkt"),
+      id: newId(),
       seq: (maxSeq || 0) + 1,
       title: dto.title,
       description: dto.description || "",

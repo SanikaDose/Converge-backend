@@ -6,10 +6,10 @@ import { Project } from "./project.entity";
 
 @Entity("tasks")
 export class Task {
-  @PrimaryColumn("varchar")
+  @PrimaryColumn("uuid")
   id: string;
 
-  @Column("varchar", { name: "phase_id" })
+  @Column("uuid", { name: "phase_id" })
   @Index()
   phaseId: string;
 
@@ -17,7 +17,7 @@ export class Task {
   @JoinColumn({ name: "phase_id" })
   phase: Phase;
 
-  @Column("varchar", { name: "project_id" })
+  @Column("uuid", { name: "project_id" })
   @Index()
   projectId: string;
 

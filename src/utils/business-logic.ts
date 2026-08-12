@@ -5,7 +5,7 @@
  * these shapes at the boundary.
  */
 import { addWorkingDays, businessDaysBetween, todayISO } from "./date-utils";
-import { TEMPLATE, genId } from "./template";
+import { TEMPLATE, newId } from "./template";
 import type { Achievement, ChecklistItem, HistoryEntry, OrgRole, PendingChange, Priority, StatusColorKey, TaskStatus, WeekDay } from "./types";
 
 export interface PlainPhase {
@@ -41,7 +41,7 @@ export interface PlainTask {
 
 export function buildProjectPhases(): PlainPhase[] {
   return TEMPLATE.map((p, i) => ({
-    id: `ph_${i}_${genId("x")}`,
+    id: newId(),
     name: p.phase,
     critical: p.critical,
     order: i,
@@ -61,7 +61,7 @@ export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: Wee
     p.tasks.forEach(([name, offset, duration], ti) => {
       const { plannedStart, plannedFinish } = computePlanned(startDate, offset, duration, weekOff);
       tasks.push({
-        id: `p${pi}_t${ti}_${genId("x")}`,
+        id: newId(),
         phaseId: phase.id,
         order: ti,
         name,
