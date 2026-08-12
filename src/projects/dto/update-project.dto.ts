@@ -1,5 +1,5 @@
 import { IsOptional } from "class-validator";
-import type { ProjectType, WeekDay } from "../../common/types";
+import type { ProjectType, WeekDay } from "../../utils/types";
 
 export interface ProjectMetaPatch {
   name?: string;

@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
-import type { ProjectType, WeekDay } from "../common/types";
+import type { ProjectType, WeekDay } from "../utils/types";
 import { Employee } from "./employee.entity";
 import { Phase } from "./phase.entity";
 import { Task } from "./task.entity";

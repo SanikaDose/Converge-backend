@@ -1,8 +1,7 @@
 import { IsIn, IsOptional, IsString } from "class-validator";
-import type { Priority, TicketStatus } from "../../common/types";
+import { PRIORITIES, TICKET_STATUSES } from "../../constants/enums";
+import type { Priority, TicketStatus } from "../../utils/types";
 
-const PRIORITIES: Priority[] = ["Low", "Medium", "High", "Critical"];
-const STATUSES: TicketStatus[] = ["Open", "In Progress", "Resolved", "Closed"];
 
 export class UpdateTicketDto {
   @IsString()
@@ -25,7 +24,7 @@ export class UpdateTicketDto {
   @IsOptional()
   priority?: Priority;
 
-  @IsIn(STATUSES)
+  @IsIn(TICKET_STATUSES)
   @IsOptional()
   status?: TicketStatus;
 

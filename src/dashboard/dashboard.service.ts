@@ -1,13 +1,34 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { DashboardBaseline } from "../entities/dashboard-baseline.entity";
 import { Project } from "../entities/project.entity";
 import { Phase } from "../entities/phase.entity";
 import { Task } from "../entities/task.entity";
 import { Ticket } from "../entities/ticket.entity";
-import { phaseSummaries, projectStatusFromPhases, summarize, type PlainPhase, type PlainTask } from "../common/business-logic";
-import { todayISO } from "../common/date-utils";
+import { phaseSummaries, projectStatusFromPhases, summarize, type PlainPhase, type PlainTask } from "../utils/business-logic";
+import { todayISO } from "../utils/date-utils";
+import type { DashboardBaselineInterface } from "./interface/dashboard.interface";
+
+/**
+ * Entity -> wire shape. `capturedAt` is a timestamptz column (a Date in
+ * TypeORM) but the API contract is an ISO string — returning the entity
+ * directly meant the declared return type and what JSON actually put on
+ * the wire disagreed.
+ */
+function toBaselineResponse(row: DashboardBaseline): DashboardBaselineInterface {
+  return {
+    activeProjects: row.activeProjects,
+    completedProjects: row.completedProjects,
+    avgCompletionPct: row.avgCompletionPct,
+    delayedTasks: row.delayedTasks,
+    totalTickets: row.totalTickets,
+    openTickets: row.openTickets,
+    resolvedTickets: row.resolvedTickets,
+    ticketResolutionPct: row.ticketResolutionPct,
+    capturedAt: row.capturedAt instanceof Date ? row.capturedAt.toISOString() : String(row.capturedAt),
+  };
+}
 
 @Injectable()
 export class DashboardService {
@@ -26,21 +47,34 @@ export class DashboardService {
    * (unlike the frontend's original in-memory version) so it survives a
    * backend restart instead of resetting every time.
    */
-  async getBaseline(): Promise<DashboardBaseline> {
+  async getBaseline(): Promise<DashboardBaselineInterface> {
     const existing = await this.baselineRepo.findOneBy({ id: 1 });
-    if (existing) return existing;
+    if (existing) return toBaselineResponse(existing);
 
     const today = todayISO();
+    // Same two-query shape as ProjectsService.findAllIndex: the per-project
+    // fetches used to sit inside the loop, so this cost 1 + 2N round trips.
     const projects = await this.projectRepo.find();
+    const projectIds = projects.map(p => p.id);
+    const [allPhases, allTasks] = projectIds.length
+      ? await Promise.all([
+          this.phaseRepo.find({ where: { projectId: In(projectIds) } }),
+          this.taskRepo.find({ where: { projectId: In(projectIds) } }),
+        ])
+      : [[], []];
+
+    const phasesByProject = new Map<string, typeof allPhases>();
+    for (const p of allPhases) (phasesByProject.get(p.projectId) ?? phasesByProject.set(p.projectId, []).get(p.projectId)!).push(p);
+    const tasksByProject = new Map<string, typeof allTasks>();
+    for (const t of allTasks) (tasksByProject.get(t.projectId) ?? tasksByProject.set(t.projectId, []).get(t.projectId)!).push(t);
+
     let completedProjects = 0;
     let pctSum = 0;
     let delayedTasks = 0;
 
     for (const project of projects) {
-      const [phases, tasks] = await Promise.all([
-        this.phaseRepo.find({ where: { projectId: project.id } }),
-        this.taskRepo.find({ where: { projectId: project.id } }),
-      ]);
+      const phases = phasesByProject.get(project.id) ?? [];
+      const tasks = tasksByProject.get(project.id) ?? [];
       const plainPhases: PlainPhase[] = phases.map(p => ({ id: p.id, name: p.name, critical: p.critical, order: p.order }));
       const plainTasks: PlainTask[] = tasks.map(t => ({
         id: t.id, phaseId: t.phaseId, order: t.order, name: t.name, description: t.description,
@@ -71,6 +105,6 @@ export class DashboardService {
       totalTickets, openTickets, resolvedTickets, ticketResolutionPct,
       capturedAt: new Date(),
     });
-    return this.baselineRepo.save(baseline);
+    return toBaselineResponse(await this.baselineRepo.save(baseline));
   }
 }

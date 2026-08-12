@@ -1,5 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
-import type { ChecklistItem, Priority, TicketStatus } from "../common/types";
+import type { ChecklistItem, Priority, TicketStatus } from "../utils/types";
 import { Employee } from "./employee.entity";
 import { Project } from "./project.entity";
 

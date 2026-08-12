@@ -1,5 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
-import type { Achievement, ChecklistItem, HistoryEntry, PendingChange, Priority, TaskStatus } from "../common/types";
+import type { Achievement, ChecklistItem, HistoryEntry, PendingChange, Priority, TaskStatus } from "../utils/types";
 import { Employee } from "./employee.entity";
 import { Phase } from "./phase.entity";
 import { Project } from "./project.entity";

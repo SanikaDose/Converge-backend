@@ -1,7 +1,7 @@
 import { IsIn, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import type { Priority } from "../../common/types";
+import { PRIORITIES } from "../../constants/enums";
+import type { Priority } from "../../utils/types";
 
-const PRIORITIES: Priority[] = ["Low", "Medium", "High", "Critical"];
 
 export class CreateTicketDto {
   @IsString()

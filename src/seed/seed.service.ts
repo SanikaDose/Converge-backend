@@ -8,13 +8,13 @@ import { Project } from "../entities/project.entity";
 import { Phase } from "../entities/phase.entity";
 import { Task } from "../entities/task.entity";
 import { Ticket } from "../entities/ticket.entity";
-import { SEED_TEAMS } from "../common/org-seed-data";
-import { appRoleFor, buildSeedCredentials, DEFAULT_PASSWORD } from "../common/credentials";
+import { SEED_TEAMS } from "../utils/org-seed-data";
+import { appRoleFor, buildSeedCredentials, DEFAULT_PASSWORD } from "../utils/credentials";
 import * as bcrypt from "bcryptjs";
-import { buildProjectPhases, buildTasks, computeAchievement, type PlainPhase, type PlainTask } from "../common/business-logic";
-import { addWorkingDays, DEFAULT_WEEK_OFF, todayISO } from "../common/date-utils";
-import { genId } from "../common/template";
-import type { HistoryEntry, WeekDay } from "../common/types";
+import { buildProjectPhases, buildTasks, computeAchievement, type PlainPhase, type PlainTask } from "../utils/business-logic";
+import { addWorkingDays, DEFAULT_WEEK_OFF, todayISO } from "../utils/date-utils";
+import { genId } from "../utils/template";
+import type { HistoryEntry, WeekDay } from "../utils/types";
 
 const EMPLOYEE_CYCLE = SEED_TEAMS.flatMap(t => t.members.map(m => m.id));
 

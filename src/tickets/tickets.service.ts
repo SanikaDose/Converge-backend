@@ -3,8 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Ticket } from "../entities/ticket.entity";
 import { Project } from "../entities/project.entity";
-import { genId } from "../common/template";
-import { todayISO } from "../common/date-utils";
+import { genId } from "../utils/template";
+import { todayISO } from "../utils/date-utils";
+import { ticketMessages } from "../constants/messages";
 import type { CreateTicketDto } from "./dto/create-ticket.dto";
 import type { UpdateTicketDto } from "./dto/update-ticket.dto";
 
@@ -21,7 +22,7 @@ export class TicketsService {
 
   async create(dto: CreateTicketDto): Promise<Ticket> {
     const project = await this.projectRepo.findOneBy({ id: dto.projectId });
-    if (!project) throw new NotFoundException("Project not found.");
+    if (!project) throw new NotFoundException(ticketMessages.projectNotFound);
 
     const maxSeq = await this.ticketRepo.maximum("seq");
     const ticket = this.ticketRepo.create({
@@ -42,7 +43,7 @@ export class TicketsService {
 
   async update(id: string, dto: UpdateTicketDto): Promise<Ticket> {
     const ticket = await this.ticketRepo.findOneBy({ id });
-    if (!ticket) throw new NotFoundException("Ticket not found.");
+    if (!ticket) throw new NotFoundException(ticketMessages.notFound);
     Object.assign(ticket, dto);
 
     // The closing date is owned here, not sent by the client, so it can't be

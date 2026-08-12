@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
-import type { AppRole, OrgRole } from "../common/types";
+import type { AppRole, OrgRole } from "../utils/types";
 import { Team } from "./team.entity";
 
 @Entity("employees")

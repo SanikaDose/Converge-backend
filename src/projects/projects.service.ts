@@ -7,9 +7,10 @@ import { Task } from "../entities/task.entity";
 import {
   buildProjectPhases, buildTasks, phaseSummaries, projectStatusFromPhases, summarize,
   type PlainPhase, type PlainTask,
-} from "../common/business-logic";
-import { todayISO, DEFAULT_WEEK_OFF } from "../common/date-utils";
-import { genId } from "../common/template";
+} from "../utils/business-logic";
+import { todayISO, DEFAULT_WEEK_OFF } from "../utils/date-utils";
+import { genId } from "../utils/template";
+import { projectMessages } from "../constants/messages";
 import type { CreateProjectDto } from "./dto/create-project.dto";
 import type { UpdateProjectDto } from "./dto/update-project.dto";
 
@@ -104,7 +105,7 @@ export class ProjectsService {
 
   async findOneDetail(id: string) {
     const project = await this.projectRepo.findOneBy({ id });
-    if (!project) throw new NotFoundException("Project not found.");
+    if (!project) throw new NotFoundException(projectMessages.notFound);
     const [phases, tasks] = await Promise.all([
       this.phaseRepo.find({ where: { projectId: id }, order: { order: "ASC" } }),
       this.taskRepo.find({ where: { projectId: id }, order: { order: "ASC" } }),
@@ -141,7 +142,7 @@ export class ProjectsService {
     // irrecoverably — there's no second copy to re-sync from.
     await this.dataSource.transaction(async (manager) => {
       const project = await manager.findOneBy(Project, { id });
-      if (!project) throw new NotFoundException("Project not found.");
+      if (!project) throw new NotFoundException(projectMessages.notFound);
 
       if (dto.meta) {
         if (dto.meta.name !== undefined) project.name = dto.meta.name;
@@ -169,7 +170,7 @@ export class ProjectsService {
     // existence check comes free — the previous SELECT-then-DELETE pair
     // cost an extra round trip and could still race between the two.
     const result = await this.projectRepo.delete({ id });
-    if (!result.affected) throw new NotFoundException("Project not found.");
+    if (!result.affected) throw new NotFoundException(projectMessages.notFound);
     return { id };
   }
 

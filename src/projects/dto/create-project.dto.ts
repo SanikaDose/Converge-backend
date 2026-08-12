@@ -1,7 +1,7 @@
 import { ArrayMaxSize, IsArray, IsIn, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import type { ProjectType, WeekDay } from "../../common/types";
-
-const PROJECT_TYPES: ProjectType[] = ["Product", "Solution"];
+import { PROJECT_TYPES } from "../../constants/enums";
+import { Config } from "../../config/config";
+import type { ProjectType, WeekDay } from "../../utils/types";
 
 export class CreateProjectDto {
   @IsString()
@@ -32,7 +32,7 @@ export class CreateProjectDto {
   endDate: string;
 
   @IsArray()
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(Config.MAX_WEEK_OFF_DAYS)
   @IsOptional()
   weekOff?: WeekDay[];
 }

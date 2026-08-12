@@ -1,12 +1,14 @@
 import { Controller, Get } from "@nestjs/common";
+import { apiControllerPath } from "../constants/routeConstants";
 import { EmployeesService } from "./employees.service";
+import type { OrgDirectoryInterface } from "./interface/employee.interface";
 
-@Controller("employees")
+@Controller(apiControllerPath.employees.root)
 export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
 
-  @Get()
-  findAll() {
+  @Get(apiControllerPath.employees.getList)
+  findAll(): Promise<OrgDirectoryInterface> {
     return this.employeesService.findAll();
   }
 }

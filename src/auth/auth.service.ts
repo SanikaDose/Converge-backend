@@ -3,6 +3,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcryptjs";
 import { Employee } from "../entities/employee.entity";
+import { authMessages } from "../constants/messages";
+import type { AppRole, OrgRole } from "../utils/types";
 import type { LoginDto } from "./dto/login.dto";
 
 /**
@@ -16,10 +18,10 @@ export interface AuthedUser {
   id: string;
   name: string;
   employeeCode: string;
-  /** Org job title ("Admin" / "User"). */
-  role: string;
-  /** Application access role ("Admin" / "User"). */
-  appRole: string;
+  /** Org job title. */
+  role: OrgRole;
+  /** Application access role. */
+  appRole: AppRole;
   teamId: string;
   team: string;
 }
@@ -44,7 +46,7 @@ export class AuthService {
     // One generic message for both failure modes: telling the caller which
     // half was wrong would let them enumerate valid employee codes.
     if (!employee || !employee.passwordHash || !ok) {
-      throw new UnauthorizedException("Invalid employee ID or password.");
+      throw new UnauthorizedException(authMessages.invalidCredentials);
     }
 
     return {

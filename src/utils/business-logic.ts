@@ -6,7 +6,7 @@
  */
 import { addWorkingDays, businessDaysBetween, todayISO } from "./date-utils";
 import { TEMPLATE, genId } from "./template";
-import type { Achievement, ChecklistItem, HistoryEntry, PendingChange, Priority, StatusColorKey, TaskStatus, WeekDay } from "./types";
+import type { Achievement, ChecklistItem, HistoryEntry, OrgRole, PendingChange, Priority, StatusColorKey, TaskStatus, WeekDay } from "./types";
 
 export interface PlainPhase {
   id: string;
@@ -181,7 +181,7 @@ export function computeAchievement(task: PlainTask, weekOff: WeekDay[]): Achieve
 export interface TeamPerformanceInput {
   id: string;
   name: string;
-  role: string;
+  role: OrgRole;
   team: string;
   teamId: string;
 }

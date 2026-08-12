@@ -4,8 +4,8 @@ import { Repository } from "typeorm";
 import { Employee } from "../entities/employee.entity";
 import { Task } from "../entities/task.entity";
 import { Team } from "../entities/team.entity";
-import { aggregateTeamPerformance } from "../common/business-logic";
-import { todayISO } from "../common/date-utils";
+import { aggregateTeamPerformance } from "../utils/business-logic";
+import { todayISO } from "../utils/date-utils";
 
 @Injectable()
 export class TeamPerformanceService {
