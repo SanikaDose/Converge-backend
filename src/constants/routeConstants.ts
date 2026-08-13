@@ -15,6 +15,9 @@ export const apiControllerPath = {
   auth: {
     root: 'auth',
     login: 'login',
+    me: 'me',
+    updateProfile: 'profile',
+    changePassword: 'change-password',
   },
 
   projects: {

@@ -14,6 +14,17 @@ export class Config {
   /** Seed demo data on boot unless SEED_ON_BOOT says otherwise. */
   public static readonly DEFAULT_SEED_ON_BOOT = 'true';
 
+  /**
+   * Fallback JWT signing secret. Development only — a shared, in-repo
+   * secret means anyone with the source can mint valid tokens, so
+   * JWT_SECRET must be set to a real random value in any deployed
+   * environment.
+   */
+  public static readonly DEFAULT_JWT_SECRET = 'converge-dev-secret-change-me';
+
+  /** How long an access token stays valid. */
+  public static readonly DEFAULT_JWT_EXPIRES_IN = '12h';
+
   /** bcrypt cost factor for seeded credentials. */
   public static readonly BCRYPT_SALT_ROUNDS = 10;
 

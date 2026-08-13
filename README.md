@@ -42,9 +42,16 @@ Copy `.env.example` to `.env` and fill in real values. Key variables:
 
 ## API
 
+Every route is prefixed `/api/v1` and **requires `Authorization: Bearer <token>`** except
+`POST /auth/login`, which is the only `@Public()` endpoint. A missing, malformed, expired, or
+tampered token gets a 401 from the global `JwtAuthGuard`.
+
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/auth/login` | `{ employeeCode, password }` → the employee's profile, or a generic 401 |
+| POST | `/auth/login` | **Public.** `{ employeeCode, password }` → profile + `accessToken`, or a generic 401 |
+| GET | `/auth/me` | The caller's own profile, re-read from the DB (not decoded from the token) |
+| PATCH | `/auth/profile` | `{ name }` — the only self-editable field; anything else is stripped |
+| POST | `/auth/change-password` | `{ currentPassword, newPassword }`. **400** (not 401) if the current password is wrong — see below |
 | GET | `/projects` | Portfolio index — live-computed stats per project |
 | POST | `/projects` | Create — generates the full 12-phase/62-task plan |
 | GET | `/projects/:id` | Full detail — `{ id, meta, phases, tasks }` |
@@ -65,16 +72,28 @@ The seeder gives every employee an `employeeCode` (initials + a global sequence 
 Converge@123
 ```
 
-Codes are matched case-insensitively. Team Leads seed with `appRole: "Admin"`, everyone else
-`"Developer"`. `SeedService.ensureCredentials()` re-runs on every boot and fills only missing
-columns, so it backfills older rows without overwriting anything already set.
+Codes are matched case-insensitively. `SeedService.ensureCredentials()` re-runs on every boot
+and fills only missing columns, so it backfills older rows without overwriting anything already
+set — including a password a user has since changed via `/auth/change-password`.
 
 Run `psql … -c "SELECT employee_code, name, app_role FROM employees ORDER BY employee_code;"`
 for the full list.
 
-> **This is not production auth.** Passwords are genuinely bcrypt-verified, but no other
-> endpoint requires a session and there's no token — anything below can be called
-> unauthenticated. Add a real session token plus a Nest guard before exposing this anywhere.
+### Auth notes
+
+- **`JWT_SECRET` must be set in any deployed environment.** `Config.DEFAULT_JWT_SECRET` is an
+  in-repo development fallback; anyone with the source can mint valid tokens against it.
+  `JWT_EXPIRES_IN` defaults to `12h`.
+- **Identity never comes from the request body.** `@CurrentUser()` reads the payload the guard
+  verified, so there is no user-id parameter to tamper with on any endpoint.
+- **`/auth/profile` accepts only `name`.** `ValidationPipe({ whitelist: true })` strips
+  everything else, so a `User` cannot promote themselves by adding `appRole` to the body.
+- **Wrong current password is 400, not 401.** The caller *is* authenticated at that point — the
+  guard already accepted their token — so the failure is in the body. The frontend treats any
+  401 as a dead session and signs out, and a typo shouldn't do that.
+- **Still open**: the guard authenticates but does not yet *authorize* — it doesn't reject a
+  `User` calling a mutating route. The token carries `appRole`, so a role check on the write
+  endpoints is the next step. There's also no token refresh or server-side revocation.
 
 ## Structure
 

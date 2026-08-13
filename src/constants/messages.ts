@@ -22,4 +22,9 @@ export const authMessages = {
    * response timing doesn't leak the same thing.
    */
   invalidCredentials: 'Invalid employee ID or password.',
+  missingToken: 'Authentication required.',
+  invalidToken: 'Session expired. Please sign in again.',
+  currentPasswordWrong: 'Your current password is incorrect.',
+  samePassword: 'The new password must be different from your current one.',
+  accountNotFound: 'Account no longer exists.',
 };

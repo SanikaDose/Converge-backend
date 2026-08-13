@@ -139,9 +139,12 @@ export class SeedService implements OnModuleInit {
           added++;
           continue;
         }
-        if (employee.name === member.name && employee.role === member.role
-          && employee.teamId === team.id && employee.appRole === appRole) continue;
-        employee.name = member.name;
+        // `name` is deliberately NOT reconciled: it's the one field a user
+        // can edit on their own profile, and overwriting it here would
+        // silently revert that on the next restart. Role, app role, and team
+        // stay organisation-controlled and are still kept in line.
+        if (employee.role === member.role && employee.teamId === team.id
+          && employee.appRole === appRole) continue;
         employee.role = member.role;
         employee.teamId = team.id;
         employee.appRole = appRole;
