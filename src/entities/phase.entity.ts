@@ -22,4 +22,8 @@ export class Phase {
 
   @Column("int")
   order: number;
+
+  /** When true the phase is excluded from progress math (its tasks don't count). */
+  @Column("boolean", { name: "not_required", default: false })
+  notRequired: boolean;
 }

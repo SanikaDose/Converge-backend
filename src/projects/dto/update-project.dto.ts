@@ -17,6 +17,7 @@ export interface PhasePatch {
   name: string;
   critical: boolean;
   order: number;
+  notRequired?: boolean;
 }
 
 export interface TaskPatch {
@@ -26,6 +27,7 @@ export interface TaskPatch {
   name: string;
   description?: string;
   assignedTo?: string | null;
+  assignees?: string[];
   priority?: string;
   dependencies?: string[];
   dayOffset: number;

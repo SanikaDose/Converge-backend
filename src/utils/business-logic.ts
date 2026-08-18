@@ -6,13 +6,26 @@
  */
 import { addWorkingDays, businessDaysBetween, todayISO } from "./date-utils";
 import { TEMPLATE, newId } from "./template";
-import type { Achievement, ChecklistItem, HistoryEntry, OrgRole, PendingChange, Priority, StatusColorKey, TaskStatus, WeekDay } from "./types";
+import type { Achievement, ChecklistItem, HistoryEntry, OrgRole, PendingChange, PhaseDiscipline, Priority, StatusColorKey, TaskStatus, TemplatePhase, WeekDay } from "./types";
+
+/**
+ * The template phases a project with the given disciplines should get: every
+ * common phase, plus each discipline-specific phase whose discipline was
+ * selected. An empty selection means "all" (every phase). This is what makes
+ * choosing e.g. [Software, Vision] leave out the Automation phase at creation.
+ */
+export function templateForDisciplines(disciplines: PhaseDiscipline[] = []): TemplatePhase[] {
+  if (!disciplines.length) return TEMPLATE;
+  return TEMPLATE.filter(p => !p.discipline || disciplines.includes(p.discipline));
+}
 
 export interface PlainPhase {
   id: string;
   name: string;
   critical: boolean;
   order: number;
+  /** When true the whole phase is excluded from progress math (its tasks don't count). */
+  notRequired?: boolean;
 }
 
 export interface PlainTask {
@@ -21,7 +34,10 @@ export interface PlainTask {
   order: number;
   name: string;
   description: string;
+  /** Primary owner, kept in sync with assignees[0] for backward-compatible display. */
   assignedTo: string | null;
+  /** All owners. assignedTo mirrors the first entry; empty means unassigned. */
+  assignees: string[];
   priority: Priority;
   dependencies: string[];
   dayOffset: number;
@@ -39,8 +55,8 @@ export interface PlainTask {
 
 /* ----------------------------- phases & tasks ----------------------------- */
 
-export function buildProjectPhases(): PlainPhase[] {
-  return TEMPLATE.map((p, i) => ({
+export function buildProjectPhases(disciplines: PhaseDiscipline[] = []): PlainPhase[] {
+  return templateForDisciplines(disciplines).map((p, i) => ({
     id: newId(),
     name: p.phase,
     critical: p.critical,
@@ -54,9 +70,11 @@ export function computePlanned(startDate: string, dayOffset: number, duration: n
   return { plannedStart, plannedFinish };
 }
 
-export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: WeekDay[]): PlainTask[] {
+export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: WeekDay[], disciplines: PhaseDiscipline[] = []): PlainTask[] {
   const tasks: PlainTask[] = [];
-  TEMPLATE.forEach((p, pi) => {
+  // Same filtered template buildProjectPhases used, so template[pi] lines up
+  // with the phases[pi] built from it.
+  templateForDisciplines(disciplines).forEach((p, pi) => {
     const phase = phases[pi];
     p.tasks.forEach(([name, offset, duration], ti) => {
       const { plannedStart, plannedFinish } = computePlanned(startDate, offset, duration, weekOff);
@@ -67,6 +85,7 @@ export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: Wee
         name,
         description: "",
         assignedTo: null,
+        assignees: [],
         priority: "Medium",
         dependencies: [],
         dayOffset: offset,
@@ -96,7 +115,8 @@ export function suggestedEndDate(startDate: string, weekOff: WeekDay[]): string 
 /* ------------------------------ delay detection ------------------------------ */
 
 export function isOverdue(task: { status: TaskStatus; plannedFinish: string }, today: string): boolean {
-  return task.status !== "Completed" && today > task.plannedFinish;
+  // "Not Required" work is out of scope, so it can never be overdue.
+  return task.status !== "Completed" && task.status !== "Not Required" && today > task.plannedFinish;
 }
 
 export function overdueWorkingDays(task: { status: TaskStatus; plannedFinish: string }, today: string, weekOff: WeekDay[]): number {
@@ -113,10 +133,13 @@ export interface Summary {
 }
 
 export function summarize(tasks: { status: TaskStatus; plannedFinish: string }[], today: string): Summary {
-  const total = tasks.length;
-  const completed = tasks.filter(t => t.status === "Completed").length;
-  const delayed = tasks.filter(t => isOverdue(t, today)).length;
-  const plannedEnd = tasks.reduce((max, t) => t.plannedFinish > max ? t.plannedFinish : max, tasks[0]?.plannedFinish || today);
+  // "Not Required" tasks drop out of the numerator AND denominator — they
+  // don't count as done or pending and don't move the completion %.
+  const counted = tasks.filter(t => t.status !== "Not Required");
+  const total = counted.length;
+  const completed = counted.filter(t => t.status === "Completed").length;
+  const delayed = counted.filter(t => isOverdue(t, today)).length;
+  const plannedEnd = counted.reduce((max, t) => t.plannedFinish > max ? t.plannedFinish : max, counted[0]?.plannedFinish || today);
   return { total, completed, delayed, plannedEnd, pct: total ? Math.round((completed / total) * 100) : 0 };
 }
 
@@ -125,6 +148,7 @@ export interface PhaseSummaryRow extends Summary {
   name: string;
   critical: boolean;
   order: number;
+  notRequired: boolean;
   color: StatusColorKey;
   phaseStart: string | null;
   phaseEnd: string | null;
@@ -135,17 +159,24 @@ export interface PhaseSummaryRow extends Summary {
 export function phaseSummaries(phases: PlainPhase[], tasks: PlainTask[], today: string, projectStartDate: string): PhaseSummaryRow[] {
   return phases.slice().sort((a, b) => a.order - b.order).map((phase) => {
     const pts = tasks.filter(t => t.phaseId === phase.id);
-    const s = summarize(pts, today);
+    // A not-required phase is neutral: its tasks are excluded from progress
+    // and it never colours the project delayed/in-progress (total 0 makes
+    // projectStatusFromPhases skip it). Its planned window still renders.
+    const s = phase.notRequired
+      ? { total: 0, completed: 0, delayed: 0, plannedEnd: today, pct: 0 }
+      : summarize(pts, today);
     let color: StatusColorKey = "slate";
-    if (s.total && s.completed === s.total) color = "green";
+    if (phase.notRequired) color = "slate";
+    else if (s.total && s.completed === s.total) color = "green";
     else if (s.delayed > 0) color = "red";
-    else if (pts.some(t => t.status !== "Not Started")) color = "amber";
+    else if (pts.some(t => t.status !== "Not Started" && t.status !== "Not Required")) color = "amber";
 
     const phaseStart = pts.length ? pts.reduce((min, t) => t.plannedStart < min ? t.plannedStart : min, pts[0].plannedStart) : null;
     const phaseEnd = pts.length ? pts.reduce((max, t) => t.plannedFinish > max ? t.plannedFinish : max, pts[0].plannedFinish) : null;
 
     return {
       id: phase.id, name: phase.name, critical: phase.critical, order: phase.order,
+      notRequired: !!phase.notRequired,
       ...s, color, phaseStart, phaseEnd,
       weekStart: phaseStart ? Math.floor((new Date(phaseStart).getTime() - new Date(projectStartDate).getTime()) / 86400000 / 7) + 1 : null,
       weekEnd: phaseEnd ? Math.floor((new Date(phaseEnd).getTime() - new Date(projectStartDate).getTime()) / 86400000 / 7) + 1 : null,
@@ -196,17 +227,27 @@ export interface TeamPerformanceRow extends TeamPerformanceInput {
 
 export function aggregateTeamPerformance(
   employees: TeamPerformanceInput[],
-  allTasks: { assignedTo: string | null; status: TaskStatus; plannedFinish: string }[],
+  allTasks: { assignedTo: string | null; assignees?: string[]; status: TaskStatus; plannedFinish: string }[],
   today: string = todayISO(),
 ): TeamPerformanceRow[] {
   const byEmployee = new Map(employees.map(e => [e.id, { ...e, total: 0, completed: 0, pending: 0, delayed: 0 }]));
   allTasks.forEach(task => {
-    if (!task.assignedTo || !byEmployee.has(task.assignedTo)) return;
-    const row = byEmployee.get(task.assignedTo)!;
-    row.total += 1;
-    if (task.status === "Completed") row.completed += 1;
-    else if (isOverdue(task, today)) row.delayed += 1;
-    else row.pending += 1;
+    // "Not Required" work counts for nobody.
+    if (task.status === "Not Required") return;
+    // A task now counts toward EVERY owner's load (multi-assignee). Fall back
+    // to the legacy single assignedTo when assignees isn't populated.
+    const owners = task.assignees && task.assignees.length ? task.assignees : (task.assignedTo ? [task.assignedTo] : []);
+    const seen = new Set<string>();
+    owners.forEach(ownerId => {
+      if (seen.has(ownerId)) return; // guard against a duplicate id on one task
+      seen.add(ownerId);
+      const row = byEmployee.get(ownerId);
+      if (!row) return;
+      row.total += 1;
+      if (task.status === "Completed") row.completed += 1;
+      else if (isOverdue(task, today)) row.delayed += 1;
+      else row.pending += 1;
+    });
   });
   return Array.from(byEmployee.values()).map(row => ({
     ...row,

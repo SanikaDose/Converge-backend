@@ -1,7 +1,7 @@
 import { ArrayMaxSize, IsArray, IsIn, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { PROJECT_TYPES } from "../../constants/enums";
+import { PROJECT_TYPES, PHASE_DISCIPLINES } from "../../constants/enums";
 import { Config } from "../../config/config";
-import type { ProjectType, WeekDay } from "../../utils/types";
+import type { PhaseDiscipline, ProjectType, WeekDay } from "../../utils/types";
 
 export class CreateProjectDto {
   @IsString()
@@ -10,6 +10,12 @@ export class CreateProjectDto {
 
   @IsIn(PROJECT_TYPES)
   type: ProjectType;
+
+  /** Which disciplines' phases to generate. Empty/omitted means every phase. */
+  @IsArray()
+  @IsIn(PHASE_DISCIPLINES, { each: true })
+  @IsOptional()
+  disciplines?: PhaseDiscipline[];
 
   @IsString()
   @IsNotEmpty()

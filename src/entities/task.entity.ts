@@ -34,12 +34,25 @@ export class Task {
   @Column("text", { default: "" })
   description: string;
 
+  /**
+   * Primary owner, kept in sync with assignees[0]. Retained (with its FK to
+   * employees) for backward-compatible display and existing data; it is
+   * always a valid employee id or null, so the FK is never violated.
+   */
   @Column("varchar", { name: "assigned_to", nullable: true })
   assignedTo: string | null;
 
   @ManyToOne(() => Employee, { nullable: true, onDelete: "SET NULL" })
   @JoinColumn({ name: "assigned_to" })
   assignee: Employee | null;
+
+  /**
+   * All owners of the task. A jsonb array (no FK) so multi-owner assignment
+   * can't fail the way a constrained column can, and so the full-sync PATCH
+   * never rejects the whole save over one stale id. assignedTo mirrors [0].
+   */
+  @Column("jsonb", { default: () => "'[]'" })
+  assignees: string[];
 
   @Column("varchar", { default: "Medium" })
   priority: Priority;

@@ -75,10 +75,11 @@ export class DashboardService {
     for (const project of projects) {
       const phases = phasesByProject.get(project.id) ?? [];
       const tasks = tasksByProject.get(project.id) ?? [];
-      const plainPhases: PlainPhase[] = phases.map(p => ({ id: p.id, name: p.name, critical: p.critical, order: p.order }));
+      const plainPhases: PlainPhase[] = phases.map(p => ({ id: p.id, name: p.name, critical: p.critical, order: p.order, notRequired: !!p.notRequired }));
       const plainTasks: PlainTask[] = tasks.map(t => ({
         id: t.id, phaseId: t.phaseId, order: t.order, name: t.name, description: t.description,
-        assignedTo: t.assignedTo, priority: t.priority, dependencies: t.dependencies, dayOffset: t.dayOffset,
+        assignedTo: t.assignedTo, assignees: t.assignees && t.assignees.length ? t.assignees : (t.assignedTo ? [t.assignedTo] : []),
+        priority: t.priority, dependencies: t.dependencies, dayOffset: t.dayOffset,
         duration: t.duration, plannedStart: t.plannedStart, plannedFinish: t.plannedFinish,
         actualStart: t.actualStart, actualFinish: t.actualFinish, status: t.status, history: t.history,
       }));

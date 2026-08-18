@@ -5,7 +5,10 @@
  * Kept framework-agnostic (no TypeORM/Nest imports) on purpose.
  */
 
-export type TaskStatus = "Not Started" | "In Progress" | "Pending Approval" | "Delayed" | "Blocked" | "Completed";
+// "Not Required" means the task/phase is excluded from progress math entirely
+// (neither counted as done nor pending — see summarize/isOverdue). Kept last so
+// existing status ordering is unchanged.
+export type TaskStatus = "Not Started" | "In Progress" | "Pending Approval" | "Delayed" | "Blocked" | "Completed" | "Not Required";
 export type StatusColorKey = "green" | "amber" | "red" | "slate" | "violet" | "orange";
 export type Priority = "Low" | "Medium" | "High" | "Critical";
 export type ProjectType = "Product" | "Solution";
@@ -62,8 +65,15 @@ export interface Achievement {
 
 export type TemplateTaskTuple = [name: string, dayOffset: number, duration: number];
 
+/** A discipline-specific phase belongs to exactly one team's workstream. */
+export type PhaseDiscipline = "Software" | "Vision" | "Automation";
+/** Chosen at project creation: "All" keeps every phase; a specific one drops the other disciplines' phases. */
+export type ProjectDiscipline = "All" | PhaseDiscipline;
+
 export interface TemplatePhase {
   phase: string;
   critical: boolean;
   tasks: TemplateTaskTuple[];
+  /** Omitted for common phases (always generated); set for the Software/Vision/Automation phases. */
+  discipline?: PhaseDiscipline;
 }

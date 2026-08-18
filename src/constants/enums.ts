@@ -1,4 +1,4 @@
-import type { AppRole, OrgRole, Priority, ProjectType, TaskStatus, TicketStatus } from '../utils/types';
+import type { AppRole, OrgRole, PhaseDiscipline, Priority, ProjectType, TaskStatus, TicketStatus } from '../utils/types';
 
 /**
  * The allowed values for every domain union, as runtime arrays.
@@ -15,6 +15,10 @@ import type { AppRole, OrgRole, Priority, ProjectType, TaskStatus, TicketStatus 
  * enum would introduce a second representation to keep in sync.
  */
 export const PROJECT_TYPES: ProjectType[] = ['Product', 'Solution'];
+
+/** Discipline-specific phases — a project is created with any subset of these
+ * (plus the common phases). An empty subset means "all". */
+export const PHASE_DISCIPLINES: PhaseDiscipline[] = ['Software', 'Vision', 'Automation'];
 
 export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Critical'];
 

@@ -40,6 +40,15 @@ export class Project {
   @Column("date", { name: "created_at" })
   createdAt: string;
 
+  /**
+   * When the project (or any of its phases/tasks) was last changed. Set
+   * explicitly in the service on create and on every update — not an
+   * @UpdateDateColumn, because a task-only edit saves the child rows without
+   * touching the Project entity, and that column would miss it.
+   */
+  @Column("timestamptz", { name: "updated_at", nullable: true })
+  updatedAt: Date | null;
+
   @Column("int", { array: true, name: "week_off" })
   weekOff: WeekDay[];
 

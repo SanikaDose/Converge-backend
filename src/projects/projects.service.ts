@@ -15,13 +15,16 @@ import type { CreateProjectDto } from "./dto/create-project.dto";
 import type { UpdateProjectDto } from "./dto/update-project.dto";
 
 function toPlainPhase(p: Phase): PlainPhase {
-  return { id: p.id, name: p.name, critical: p.critical, order: p.order };
+  return { id: p.id, name: p.name, critical: p.critical, order: p.order, notRequired: !!p.notRequired };
 }
 
 function toPlainTask(t: Task): PlainTask {
+  // Legacy rows predate `assignees`: fall back to the single assignedTo so
+  // older tasks still show their owner.
+  const assignees = t.assignees && t.assignees.length ? t.assignees : (t.assignedTo ? [t.assignedTo] : []);
   return {
     id: t.id, phaseId: t.phaseId, order: t.order, name: t.name, description: t.description,
-    assignedTo: t.assignedTo, priority: t.priority, dependencies: t.dependencies,
+    assignedTo: t.assignedTo, assignees, priority: t.priority, dependencies: t.dependencies,
     dayOffset: t.dayOffset, duration: t.duration, plannedStart: t.plannedStart, plannedFinish: t.plannedFinish,
     actualStart: t.actualStart, actualFinish: t.actualFinish, status: t.status, history: t.history,
     achievement: t.achievement, pendingChange: t.pendingChange, checklist: t.checklist ?? [],
@@ -32,7 +35,7 @@ function toTaskLite(tasks: Task[]) {
   return tasks.map(t => ({ phaseId: t.phaseId, name: t.name, plannedFinish: t.plannedFinish, actualFinish: t.actualFinish, status: t.status }));
 }
 function toPhasesLite(phases: Phase[]) {
-  return phases.map(p => ({ id: p.id, critical: p.critical, name: p.name }));
+  return phases.map(p => ({ id: p.id, critical: p.critical, name: p.name, notRequired: !!p.notRequired }));
 }
 
 /** Bucket rows by a key, preserving the order the query returned them in. */
@@ -51,7 +54,8 @@ function toMeta(project: Project) {
   return {
     name: project.name, type: project.type, customer: project.customer, location: project.location,
     owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
-    createdAt: project.createdAt, weekOff: project.weekOff,
+    createdAt: project.createdAt, updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
+    weekOff: project.weekOff,
   };
 }
 
@@ -90,13 +94,19 @@ export class ProjectsService {
     return projects.map((project) => {
       const phases = phasesByProject.get(project.id) ?? [];
       const tasks = tasksByProject.get(project.id) ?? [];
+      const plainPhases = phases.map(toPlainPhase);
       const plainTasks = tasks.map(toPlainTask);
-      const s = summarize(plainTasks, today);
-      const phaseRows = phaseSummaries(phases.map(toPlainPhase), plainTasks, today, project.startDate);
+      // Project totals exclude tasks in a not-required phase as well as
+      // individually not-required tasks (summarize handles the latter).
+      const notRequiredPhaseIds = new Set(plainPhases.filter(p => p.notRequired).map(p => p.id));
+      const countableTasks = plainTasks.filter(t => !notRequiredPhaseIds.has(t.phaseId));
+      const s = summarize(countableTasks, today);
+      const phaseRows = phaseSummaries(plainPhases, plainTasks, today, project.startDate);
       const bucket = projectStatusFromPhases(phaseRows);
       return {
         id: project.id, name: project.name, type: project.type, customer: project.customer,
         owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
+        updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
         pct: s.pct, completed: s.completed, total: s.total, delayed: s.delayed, plannedEnd: s.plannedEnd,
         bucket, taskLite: toTaskLite(tasks), phasesLite: toPhasesLite(phases),
       };
@@ -115,9 +125,13 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto) {
     const weekOff = dto.weekOff && dto.weekOff.length ? dto.weekOff.slice(0, 2) : DEFAULT_WEEK_OFF;
+    const disciplines = dto.disciplines ?? [];
     const id = newId();
-    const plainPhases = buildProjectPhases();
-    const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff);
+    // Only the selected disciplines' phases (plus common ones) are generated —
+    // e.g. [Software] leaves out the Vision and Automation phases entirely.
+    // An empty selection means every phase.
+    const plainPhases = buildProjectPhases(disciplines);
+    const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff, disciplines);
 
     // One transaction: a project row with phases but no tasks (or vice
     // versa) is not a state the app can render, so a partial failure must
@@ -125,7 +139,8 @@ export class ProjectsService {
     await this.dataSource.transaction(async (manager) => {
       const project = manager.create(Project, {
         id, name: dto.name, type: dto.type, customer: dto.customer, location: dto.location || null,
-        ownerId: dto.owner || null, startDate: dto.startDate, endDate: dto.endDate, createdAt: todayISO(), weekOff,
+        ownerId: dto.owner || null, startDate: dto.startDate, endDate: dto.endDate,
+        createdAt: todayISO(), updatedAt: new Date(), weekOff,
       });
       await manager.save(project);
       await manager.save(plainPhases.map(p => manager.create(Phase, { ...p, projectId: id })));
@@ -153,8 +168,12 @@ export class ProjectsService {
         if (dto.meta.startDate !== undefined) project.startDate = dto.meta.startDate;
         if (dto.meta.endDate !== undefined) project.endDate = dto.meta.endDate;
         if (dto.meta.weekOff !== undefined) project.weekOff = dto.meta.weekOff;
-        await manager.save(project);
       }
+
+      // Bump "last updated" on any change — a task/phase edit counts too, so
+      // this saves the project row even when only dto.phases/tasks changed.
+      project.updatedAt = new Date();
+      await manager.save(project);
 
       if (dto.phases) await this.syncPhases(manager, id, dto.phases);
       if (dto.tasks) await this.syncTasks(manager, id, dto.tasks);
@@ -186,7 +205,9 @@ export class ProjectsService {
     const incomingIds = new Set(incoming.map(p => p.id));
     const toDelete = existing.filter(p => !incomingIds.has(p.id)).map(p => p.id);
     if (toDelete.length) await manager.delete(Phase, { id: In(toDelete) });
-    await manager.save(incoming.map(p => manager.create(Phase, { ...p, projectId })));
+    await manager.save(incoming.map(p => manager.create(Phase, {
+      id: p.id, projectId, name: p.name, critical: p.critical, order: p.order, notRequired: !!p.notRequired,
+    })));
   }
 
   private async syncTasks(manager: EntityManager, projectId: string, incoming: NonNullable<UpdateProjectDto["tasks"]>) {
@@ -194,9 +215,15 @@ export class ProjectsService {
     const incomingIds = new Set(incoming.map(t => t.id));
     const toDelete = existing.filter(t => !incomingIds.has(t.id)).map(t => t.id);
     if (toDelete.length) await manager.delete(Task, { id: In(toDelete) });
-    await manager.save(incoming.map(t => manager.create(Task, {
+    await manager.save(incoming.map(t => {
+      // Multi-owner lives in `assignees`; `assigned_to` mirrors the first
+      // (or the legacy single value) so its FK to employees stays valid and
+      // older display code keeps working.
+      const assignees = Array.isArray(t.assignees) ? t.assignees.filter(Boolean) : (t.assignedTo ? [t.assignedTo] : []);
+      const assignedTo = assignees[0] ?? null;
+      return manager.create(Task, {
       id: t.id, phaseId: t.phaseId, projectId, order: t.order, name: t.name,
-      description: t.description ?? "", assignedTo: t.assignedTo ?? null, priority: (t.priority as Task["priority"]) ?? "Medium",
+      description: t.description ?? "", assignedTo, assignees, priority: (t.priority as Task["priority"]) ?? "Medium",
       dependencies: t.dependencies ?? [], dayOffset: t.dayOffset, duration: t.duration,
       plannedStart: t.plannedStart, plannedFinish: t.plannedFinish,
       actualStart: t.actualStart ?? null, actualFinish: t.actualFinish ?? null,
@@ -205,6 +232,7 @@ export class ProjectsService {
       achievement: (t.achievement as Task["achievement"]) ?? null,
       history: (t.history as Task["history"]) ?? [],
       checklist: (t.checklist as Task["checklist"]) ?? [],
-    })));
+      });
+    }));
   }
 }
