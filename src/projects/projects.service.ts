@@ -10,6 +10,7 @@ import {
 } from "../utils/business-logic";
 import { todayISO, DEFAULT_WEEK_OFF } from "../utils/date-utils";
 import { newId } from "../utils/template";
+import { ProjectTemplatesService } from "../project-templates/project-templates.service";
 import { projectMessages } from "../constants/messages";
 import type { CreateProjectDto } from "./dto/create-project.dto";
 import type { UpdateProjectDto } from "./dto/update-project.dto";
@@ -66,6 +67,7 @@ export class ProjectsService {
     @InjectRepository(Phase) private readonly phaseRepo: Repository<Phase>,
     @InjectRepository(Task) private readonly taskRepo: Repository<Task>,
     private readonly dataSource: DataSource,
+    private readonly templates: ProjectTemplatesService,
   ) {}
 
   /**
@@ -127,11 +129,13 @@ export class ProjectsService {
     const weekOff = dto.weekOff && dto.weekOff.length ? dto.weekOff.slice(0, 2) : DEFAULT_WEEK_OFF;
     const disciplines = dto.disciplines ?? [];
     const id = newId();
-    // Only the selected disciplines' phases (plus common ones) are generated —
-    // e.g. [Software] leaves out the Vision and Automation phases entirely.
-    // An empty selection means every phase.
-    const plainPhases = buildProjectPhases(disciplines);
-    const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff, disciplines);
+    // Phases/tasks come from the DB template (admins can edit it) filtered by
+    // discipline — e.g. [Software] leaves out the Vision and Automation phases.
+    // The business-day scheduling (computePlanned, inside buildTasks) is
+    // unchanged; only the source of the definitions moved to the database.
+    const template = await this.templates.getForBuild();
+    const plainPhases = buildProjectPhases(template, disciplines);
+    const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff, template, disciplines);
 
     // One transaction: a project row with phases but no tasks (or vice
     // versa) is not a state the app can render, so a partial failure must

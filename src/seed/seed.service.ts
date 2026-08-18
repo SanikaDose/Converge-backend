@@ -13,7 +13,7 @@ import { appRoleFor, buildSeedCredentials, DEFAULT_PASSWORD } from "../utils/cre
 import * as bcrypt from "bcryptjs";
 import { buildProjectPhases, buildTasks, computeAchievement, type PlainPhase, type PlainTask } from "../utils/business-logic";
 import { addWorkingDays, DEFAULT_WEEK_OFF, todayISO } from "../utils/date-utils";
-import { newId } from "../utils/template";
+import { TEMPLATE, newId } from "../utils/template";
 import type { HistoryEntry, WeekDay } from "../utils/types";
 
 const EMPLOYEE_CYCLE = SEED_TEAMS.flatMap(t => t.members.map(m => m.id));
@@ -224,8 +224,8 @@ export class SeedService implements OnModuleInit {
     const today = todayISO();
     const startA = addWorkingDays(today, -3);
     const weekOffA = DEFAULT_WEEK_OFF;
-    const phasesA = buildProjectPhases();
-    const tasksA = buildTasks(startA, phasesA, weekOffA);
+    const phasesA = buildProjectPhases(TEMPLATE);
+    const tasksA = buildTasks(startA, phasesA, weekOffA, TEMPLATE);
     simulateProgress(tasksA, today, weekOffA);
 
     const kickoff = findTask(tasksA, phasesA, 0, 0);
@@ -294,8 +294,8 @@ export class SeedService implements OnModuleInit {
     const today = todayISO();
     const startB = addWorkingDays(today, -35);
     const weekOffB: WeekDay[] = [5, 6]; // Fri + Sat — different work week, proves weekOff is per-project
-    const phasesB = buildProjectPhases();
-    const tasksB = buildTasks(startB, phasesB, weekOffB);
+    const phasesB = buildProjectPhases(TEMPLATE);
+    const tasksB = buildTasks(startB, phasesB, weekOffB, TEMPLATE);
     simulateProgress(tasksB, today, weekOffB);
 
     const id = newId();

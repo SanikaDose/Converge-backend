@@ -62,6 +62,10 @@ tampered token gets a 401 from the global `JwtAuthGuard`.
 | GET | `/team-performance` | Per-employee task load/completion, aggregated live |
 | GET | `/dashboard-summary` | Portfolio baseline snapshot (captured once, for "vs last month" trend captions) |
 | GET | `/employees` | `{ teams, employees }` org directory |
+| GET | `/project-templates` | Master phases + default tasks new projects are built from |
+| POST | `/project-templates/phases/:id/tasks` | **Admin only.** Add a task to a template phase |
+| PATCH | `/project-templates/tasks/:id` | **Admin only.** Edit a template task |
+| DELETE | `/project-templates/tasks/:id` | **Admin only.** Remove a template task |
 
 ### Sign-in credentials (development)
 
@@ -105,9 +109,12 @@ src/
                      businessLogic,data}.ts so both apps compute
                      identical planned dates / delay / achievement logic.
   entities/          TypeORM entities: Team, Employee, Project, Phase,
-                     Task, Ticket, DashboardBaseline.
+                     Task, Ticket, DashboardBaseline, PhaseTemplate, TaskTemplate.
   employees/         GET /employees
   projects/          GET/POST /projects, GET/PATCH /projects/:id
+  project-templates/ GET /project-templates (+ admin task add/edit/delete). The DB-backed
+                     master template new projects are generated from; self-seeds on boot from
+                     the in-code TEMPLATE. Editing it affects future projects only.
   tickets/           GET/POST /tickets, PATCH /tickets/:id
   team-performance/  GET /team-performance
   dashboard/         GET /dashboard-summary

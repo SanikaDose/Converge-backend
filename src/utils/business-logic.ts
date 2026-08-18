@@ -13,10 +13,14 @@ import type { Achievement, ChecklistItem, HistoryEntry, OrgRole, PendingChange, 
  * common phase, plus each discipline-specific phase whose discipline was
  * selected. An empty selection means "all" (every phase). This is what makes
  * choosing e.g. [Software, Vision] leave out the Automation phase at creation.
+ *
+ * `template` is passed in (it now lives in the database — see
+ * ProjectTemplatesService) rather than read from the in-code TEMPLATE, so the
+ * caller controls the source. Business logic stays DB-free.
  */
-export function templateForDisciplines(disciplines: PhaseDiscipline[] = []): TemplatePhase[] {
-  if (!disciplines.length) return TEMPLATE;
-  return TEMPLATE.filter(p => !p.discipline || disciplines.includes(p.discipline));
+export function templateForDisciplines(template: TemplatePhase[], disciplines: PhaseDiscipline[] = []): TemplatePhase[] {
+  if (!disciplines.length) return template;
+  return template.filter(p => !p.discipline || disciplines.includes(p.discipline));
 }
 
 export interface PlainPhase {
@@ -55,8 +59,8 @@ export interface PlainTask {
 
 /* ----------------------------- phases & tasks ----------------------------- */
 
-export function buildProjectPhases(disciplines: PhaseDiscipline[] = []): PlainPhase[] {
-  return templateForDisciplines(disciplines).map((p, i) => ({
+export function buildProjectPhases(template: TemplatePhase[], disciplines: PhaseDiscipline[] = []): PlainPhase[] {
+  return templateForDisciplines(template, disciplines).map((p, i) => ({
     id: newId(),
     name: p.phase,
     critical: p.critical,
@@ -70,11 +74,11 @@ export function computePlanned(startDate: string, dayOffset: number, duration: n
   return { plannedStart, plannedFinish };
 }
 
-export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: WeekDay[], disciplines: PhaseDiscipline[] = []): PlainTask[] {
+export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: WeekDay[], template: TemplatePhase[], disciplines: PhaseDiscipline[] = []): PlainTask[] {
   const tasks: PlainTask[] = [];
   // Same filtered template buildProjectPhases used, so template[pi] lines up
   // with the phases[pi] built from it.
-  templateForDisciplines(disciplines).forEach((p, pi) => {
+  templateForDisciplines(template, disciplines).forEach((p, pi) => {
     const phase = phases[pi];
     p.tasks.forEach(([name, offset, duration], ti) => {
       const { plannedStart, plannedFinish } = computePlanned(startDate, offset, duration, weekOff);

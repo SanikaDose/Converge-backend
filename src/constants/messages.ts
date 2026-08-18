@@ -14,6 +14,12 @@ export const ticketMessages = {
   projectNotFound: 'Project not found.',
 };
 
+export const templateMessages = {
+  phaseNotFound: 'Phase template not found.',
+  taskNotFound: 'Task template not found.',
+  adminOnly: 'Only an administrator can edit the project template.',
+};
+
 export const authMessages = {
   /**
    * Deliberately identical for "no such code" and "wrong password" — a

@@ -36,6 +36,14 @@ export const apiControllerPath = {
     updateById: ':id',
   },
 
+  projectTemplates: {
+    root: 'project-templates',
+    get: '',
+    addTask: 'phases/:phaseId/tasks',
+    updateTask: 'tasks/:taskId',
+    deleteTask: 'tasks/:taskId',
+  },
+
   employees: {
     root: 'employees',
     getList: '',

@@ -8,7 +8,10 @@ import { Phase } from "./entities/phase.entity";
 import { Task } from "./entities/task.entity";
 import { Ticket } from "./entities/ticket.entity";
 import { DashboardBaseline } from "./entities/dashboard-baseline.entity";
+import { PhaseTemplate } from "./entities/phase-template.entity";
+import { TaskTemplate } from "./entities/task-template.entity";
 import { AuthModule } from "./auth/auth.module";
+import { ProjectTemplatesModule } from "./project-templates/project-templates.module";
 import { EmployeesModule } from "./employees/employees.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { TicketsModule } from "./tickets/tickets.module";
@@ -31,7 +34,7 @@ import { SeedModule } from "./seed/seed.module";
       // their managed certificate chain, which those providers issue rather
       // than a public CA. Off by default so a local Postgres still connects.
       ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
-      entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline],
+      entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, PhaseTemplate, TaskTemplate],
       // Opt-in, and deliberately OFF unless asked for: synchronize reshapes
       // the schema from the entities on every boot, so a renamed property
       // silently drops the column — and its data — in production. Enable it
@@ -39,6 +42,7 @@ import { SeedModule } from "./seed/seed.module";
       synchronize: process.env.DB_SYNCHRONIZE === "true",
     }),
     AuthModule,
+    ProjectTemplatesModule,
     EmployeesModule,
     ProjectsModule,
     TicketsModule,
