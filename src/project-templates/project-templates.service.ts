@@ -60,6 +60,9 @@ export class ProjectTemplatesService implements OnModuleInit {
     this.logger.log(`Seeded project template: ${phases.length} phases, ${tasks.length} tasks.`);
   }
 
+
+
+  // 
   /** Grouped phases + tasks, ordered — for the API (create form + admin screen). */
   async getTemplate(): Promise<PhaseTemplateResponse[]> {
     const [phases, tasks] = await Promise.all([
