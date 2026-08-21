@@ -56,7 +56,7 @@ function toMeta(project: Project) {
     name: project.name, type: project.type, customer: project.customer, location: project.location,
     owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
     createdAt: project.createdAt, updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
-    weekOff: project.weekOff,
+    financialYear: project.financialYear, weekOff: project.weekOff,
   };
 }
 
@@ -109,6 +109,7 @@ export class ProjectsService {
         id: project.id, name: project.name, type: project.type, customer: project.customer,
         owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
         updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
+        financialYear: project.financialYear,
         pct: s.pct, completed: s.completed, total: s.total, delayed: s.delayed, plannedEnd: s.plannedEnd,
         bucket, taskLite: toTaskLite(tasks), phasesLite: toPhasesLite(phases),
       };
@@ -144,7 +145,7 @@ export class ProjectsService {
       const project = manager.create(Project, {
         id, name: dto.name, type: dto.type, customer: dto.customer, location: dto.location || null,
         ownerId: dto.owner || null, startDate: dto.startDate, endDate: dto.endDate,
-        createdAt: todayISO(), updatedAt: new Date(), weekOff,
+        createdAt: todayISO(), updatedAt: new Date(), financialYear: dto.financialYear || null, weekOff,
       });
       await manager.save(project);
       await manager.save(plainPhases.map(p => manager.create(Phase, { ...p, projectId: id })));
@@ -171,6 +172,7 @@ export class ProjectsService {
         if (dto.meta.owner !== undefined) project.ownerId = dto.meta.owner;
         if (dto.meta.startDate !== undefined) project.startDate = dto.meta.startDate;
         if (dto.meta.endDate !== undefined) project.endDate = dto.meta.endDate;
+        if (dto.meta.financialYear !== undefined) project.financialYear = dto.meta.financialYear;
         if (dto.meta.weekOff !== undefined) project.weekOff = dto.meta.weekOff;
       }
 

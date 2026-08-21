@@ -29,16 +29,10 @@ import { SeedModule } from "./seed/seed.module";
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      // Hosted Postgres (Render, Railway, Neon, Supabase) requires TLS and
-      // refuses plaintext connections. `rejectUnauthorized: false` accepts
-      // their managed certificate chain, which those providers issue rather
-      // than a public CA. Off by default so a local Postgres still connects.
+      // Hosted Postgres (Render, Railway, Neon, Supabase) requires TLS 
+
       ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
       entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, PhaseTemplate, TaskTemplate],
-      // Opt-in, and deliberately OFF unless asked for: synchronize reshapes
-      // the schema from the entities on every boot, so a renamed property
-      // silently drops the column — and its data — in production. Enable it
-      // for the first deploy to create the tables, then turn it off.
       synchronize: process.env.DB_SYNCHRONIZE === "true",
     }),
     AuthModule,

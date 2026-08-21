@@ -49,6 +49,10 @@ export class Project {
   @Column("timestamptz", { name: "updated_at", nullable: true })
   updatedAt: Date | null;
 
+  /** Financial year the project belongs to, e.g. "FY26-27". Chosen at creation. */
+  @Column("varchar", { name: "financial_year", nullable: true })
+  financialYear: string | null;
+
   @Column("int", { array: true, name: "week_off" })
   weekOff: WeekDay[];
 

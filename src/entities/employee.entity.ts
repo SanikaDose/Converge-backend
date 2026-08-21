@@ -13,13 +13,6 @@ export class Employee {
   @Column("varchar")
   role: OrgRole;
 
-  /**
-   * Human-typed sign-in identifier (e.g. "SD001") — initials + a stable
-   * sequence number, unique across the directory (plain initials collide:
-   * Prachi Jamgaonkar and Pavitra Joshi are both "PJ"). Nullable only so
-   * `synchronize: true` can add the column to rows that predate it; the
-   * seeder backfills every employee.
-   */
   @Column("varchar", { name: "employee_code", nullable: true, unique: true })
   employeeCode: string | null;
 

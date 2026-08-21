@@ -9,6 +9,7 @@ export interface ProjectMetaPatch {
   owner?: string | null;
   startDate?: string;
   endDate?: string;
+  financialYear?: string | null;
   weekOff?: WeekDay[];
 }
 

@@ -20,6 +20,9 @@ export const PROJECT_TYPES: ProjectType[] = ['Product', 'Solution'];
  * (plus the common phases). An empty subset means "all". */
 export const PHASE_DISCIPLINES: PhaseDiscipline[] = ['Software', 'Vision', 'Automation'];
 
+/** Financial years selectable when creating a project (Apr–Mar). */
+export const FINANCIAL_YEARS: string[] = ['FY26-27', 'FY25-26', 'FY24-25'];
+
 export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Critical'];
 
 export const TICKET_STATUSES: TicketStatus[] = ['Open', 'In Progress', 'Resolved', 'Closed'];
