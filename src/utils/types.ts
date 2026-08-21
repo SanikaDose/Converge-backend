@@ -63,6 +63,15 @@ export interface Achievement {
   days: number;
 }
 
+/** Warranty details captured once a project is completed. */
+export interface Warranty {
+  /** ISO date the project was completed / warranty starts. */
+  completionDate: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+}
+
 export type TemplateTaskTuple = [name: string, dayOffset: number, duration: number];
 
 /** A discipline-specific phase belongs to exactly one team's workstream. */

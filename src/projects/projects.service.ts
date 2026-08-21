@@ -56,7 +56,7 @@ function toMeta(project: Project) {
     name: project.name, type: project.type, customer: project.customer, location: project.location,
     owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
     createdAt: project.createdAt, updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
-    financialYear: project.financialYear, weekOff: project.weekOff,
+    financialYear: project.financialYear, warranty: project.warranty ?? null, weekOff: project.weekOff,
   };
 }
 
@@ -173,6 +173,7 @@ export class ProjectsService {
         if (dto.meta.startDate !== undefined) project.startDate = dto.meta.startDate;
         if (dto.meta.endDate !== undefined) project.endDate = dto.meta.endDate;
         if (dto.meta.financialYear !== undefined) project.financialYear = dto.meta.financialYear;
+        if (dto.meta.warranty !== undefined) project.warranty = dto.meta.warranty;
         if (dto.meta.weekOff !== undefined) project.weekOff = dto.meta.weekOff;
       }
 

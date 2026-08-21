@@ -1,5 +1,5 @@
 import { IsOptional } from "class-validator";
-import type { ProjectType, WeekDay } from "../../utils/types";
+import type { ProjectType, WeekDay, Warranty } from "../../utils/types";
 
 export interface ProjectMetaPatch {
   name?: string;
@@ -10,6 +10,7 @@ export interface ProjectMetaPatch {
   startDate?: string;
   endDate?: string;
   financialYear?: string | null;
+  warranty?: Warranty | null;
   weekOff?: WeekDay[];
 }
 

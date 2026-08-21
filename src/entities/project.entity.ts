@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
-import type { ProjectType, WeekDay } from "../utils/types";
+import type { ProjectType, WeekDay, Warranty } from "../utils/types";
 import { Employee } from "./employee.entity";
 import { Phase } from "./phase.entity";
 import { Task } from "./task.entity";
@@ -52,6 +52,10 @@ export class Project {
   /** Financial year the project belongs to, e.g. "FY26-27". Chosen at creation. */
   @Column("varchar", { name: "financial_year", nullable: true })
   financialYear: string | null;
+
+  /** Warranty details, filled once the project is completed. Null until then. */
+  @Column("jsonb", { nullable: true })
+  warranty: Warranty | null;
 
   @Column("int", { array: true, name: "week_off" })
   weekOff: WeekDay[];
