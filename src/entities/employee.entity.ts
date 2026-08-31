@@ -16,6 +16,12 @@ export class Employee {
   @Column("varchar", { name: "employee_code", nullable: true, unique: true })
   employeeCode: string | null;
 
+  @Column("varchar", { nullable: true })
+  email: string | null;
+
+@Column("varchar", { name: "phone_number", nullable: true })
+  phoneNumber: string | null;
+
   /** bcrypt hash — never returned by any endpoint. */
   @Column("varchar", { name: "password_hash", nullable: true })
   passwordHash: string | null;

@@ -8,21 +8,58 @@ import { todayISO } from "../utils/date-utils";
 import { ticketMessages } from "../constants/messages";
 import type { CreateTicketDto } from "./dto/create-ticket.dto";
 import type { UpdateTicketDto } from "./dto/update-ticket.dto";
+import { Employee } from "src/entities/employee.entity";
+import { NotificationsService } from "src/notifications/notifications.service";
 
 @Injectable()
 export class TicketsService {
+
   constructor(
     @InjectRepository(Ticket) private readonly ticketRepo: Repository<Ticket>,
     @InjectRepository(Project) private readonly projectRepo: Repository<Project>,
-  ) {}
+
+    @InjectRepository(Employee)
+    private readonly employeeRepo: Repository<Employee>,
+
+    private readonly notificationsService: NotificationsService,
+  ) { }
 
   findAll(): Promise<Ticket[]> {
-    return this.ticketRepo.find({ order: { createdAt: "DESC", seq: "DESC" } });
+    return this.ticketRepo.find({
+      relations: {
+        assignee: true,
+      },
+      order: {
+        createdAt: "DESC",
+        seq: "DESC",
+      },
+    });
   }
 
   async create(dto: CreateTicketDto): Promise<Ticket> {
-    const project = await this.projectRepo.findOneBy({ id: dto.projectId });
-    if (!project) throw new NotFoundException(ticketMessages.projectNotFound);
+    const project = await this.projectRepo.findOneBy({
+      id: dto.projectId,
+    });
+
+    if (!project) {
+      throw new NotFoundException(
+        ticketMessages.projectNotFound,
+      );
+    }
+
+    let assignee: Employee | null = null;
+
+    if (dto.assignedTo) {
+      assignee = await this.employeeRepo.findOneBy({
+        id: dto.assignedTo,
+      });
+
+      if (!assignee) {
+        throw new NotFoundException(
+          "Assigned employee not found"
+        );
+      }
+    }
 
     const maxSeq = await this.ticketRepo.maximum("seq");
     const ticket = this.ticketRepo.create({
@@ -33,12 +70,30 @@ export class TicketsService {
       projectId: dto.projectId,
       projectName: project.name,
       phase: dto.phase || null,
-      assignedTo: dto.assignedTo || null,
+      assignedTo: assignee?.id || null,
       priority: dto.priority || "Medium",
       status: "Open",
       createdAt: todayISO(),
+      assignee,
     });
-    return this.ticketRepo.save(ticket);
+
+    const savedTicket = await this.ticketRepo.save(ticket);
+
+    if (assignee) {
+      try {
+        await this.notificationsService.notifyTicketAssigned(
+          savedTicket,
+          assignee,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to send ticket notifications for ticket ${savedTicket.id}`,
+          error,
+        );
+      }
+    }
+
+    return savedTicket;
   }
 
   async update(id: string, dto: UpdateTicketDto): Promise<Ticket> {
