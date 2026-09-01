@@ -1,9 +1,13 @@
-import { IsInt, IsNotEmpty, IsString, Max, Min } from "class-validator";
+import { IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class AddTaskTemplateDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   /** Working days from project start. */
   @IsInt()

@@ -72,7 +72,7 @@ export interface Warranty {
   email: string;
 }
 
-export type TemplateTaskTuple = [name: string, dayOffset: number, duration: number];
+export type TemplateTaskTuple = [name: string, dayOffset: number, duration: number, description?: string];
 
 /** A discipline-specific phase belongs to exactly one team's workstream. */
 export type PhaseDiscipline = "Software" | "Vision" | "Automation";

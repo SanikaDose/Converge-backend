@@ -40,6 +40,7 @@ export const apiControllerPath = {
     root: 'project-templates',
     get: '',
     addTask: 'phases/:phaseId/tasks',
+    reorderTasks: 'phases/:phaseId/tasks/reorder',
     updateTask: 'tasks/:taskId',
     deleteTask: 'tasks/:taskId',
   },
@@ -57,5 +58,10 @@ export const apiControllerPath = {
   dashboard: {
     root: 'dashboard-summary',
     getSummary: '',
+  },
+
+  notifications: {
+    root: 'notifications',
+    getList: '',
   },
 } as const;

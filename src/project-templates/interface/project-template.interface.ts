@@ -3,6 +3,7 @@ import type { PhaseDiscipline } from "../../utils/types";
 export interface TaskTemplateResponse {
   id: string;
   name: string;
+  description: string;
   dayOffset: number;
   duration: number;
   order: number;

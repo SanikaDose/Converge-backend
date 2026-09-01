@@ -23,6 +23,10 @@ export class TaskTemplate {
   @Column("varchar")
   name: string;
 
+  /** Default description copied onto the task when a project is generated. */
+  @Column("text", { default: "" })
+  description: string;
+
   @Column("int", { name: "day_offset" })
   dayOffset: number;
 

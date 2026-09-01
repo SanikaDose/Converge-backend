@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Ticket } from "../entities/ticket.entity";
@@ -94,6 +94,10 @@ export class TicketsService {
   async update(id: string, dto: UpdateTicketDto): Promise<Ticket> {
     const ticket = await this.ticketRepo.findOneBy({ id });
     if (!ticket) throw new NotFoundException(ticketMessages.notFound);
+    // A closed ticket is final — it can never be reopened to another status.
+    if (ticket.status === "Closed" && dto.status && dto.status !== "Closed") {
+      throw new ConflictException(ticketMessages.closedFinal);
+    }
     Object.assign(ticket, dto);
     // Keep the primary assignee mirror in step when assignees is edited.
     if (dto.assignees !== undefined) {

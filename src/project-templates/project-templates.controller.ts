@@ -5,6 +5,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/interface/auth.interface";
 import { ProjectTemplatesService } from "./project-templates.service";
 import { AddTaskTemplateDto } from "./dto/add-task-template.dto";
+import { ReorderTasksDto } from "./dto/reorder-tasks.dto";
 import { UpdateTaskTemplateDto } from "./dto/update-task-template.dto";
 
 const routes = apiControllerPath.projectTemplates;
@@ -36,6 +37,16 @@ export class ProjectTemplatesController {
   ) {
     this.assertAdmin(user);
     return this.service.addTask(phaseId, dto);
+  }
+
+  @Patch(routes.reorderTasks)
+  reorderTasks(
+    @CurrentUser() user: JwtPayload,
+    @Param("phaseId", ParseUUIDPipe) phaseId: string,
+    @Body() dto: ReorderTasksDto,
+  ) {
+    this.assertAdmin(user);
+    return this.service.reorderTasks(phaseId, dto.taskIds);
   }
 
   @Patch(routes.updateTask)

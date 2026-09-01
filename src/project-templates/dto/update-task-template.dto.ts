@@ -6,6 +6,10 @@ export class UpdateTaskTemplateDto {
   @IsOptional()
   name?: string;
 
+  @IsString()
+  @IsOptional()
+  description?: string;
+
   @IsInt()
   @Min(0)
   @Max(3650)

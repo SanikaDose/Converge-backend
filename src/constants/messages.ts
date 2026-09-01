@@ -13,12 +13,14 @@ export const projectMessages = {
 export const ticketMessages = {
   notFound: 'Ticket not found.',
   projectNotFound: 'Project not found.',
+  closedFinal: 'A closed ticket cannot be reopened.',
 };
 
 export const templateMessages = {
   phaseNotFound: 'Phase template not found.',
   taskNotFound: 'Task template not found.',
   adminOnly: 'Only an administrator can edit the project template.',
+  reorderMismatch: 'The reorder list must contain exactly this phase\'s tasks.',
 };
 
 export const authMessages = {

@@ -17,6 +17,7 @@ import { ProjectsModule } from "./projects/projects.module";
 import { TicketsModule } from "./tickets/tickets.module";
 import { TeamPerformanceModule } from "./team-performance/team-performance.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { NotificationFeedModule } from "./notification-feed/notification-feed.module";
 import { SeedModule } from "./seed/seed.module";
 
 @Module({
@@ -42,6 +43,7 @@ import { SeedModule } from "./seed/seed.module";
     TicketsModule,
     TeamPerformanceModule,
     DashboardModule,
+    NotificationFeedModule,
     SeedModule,
   ],
 })

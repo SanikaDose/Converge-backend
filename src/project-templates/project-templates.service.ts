@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, type OnModuleInit } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PhaseTemplate } from "../entities/phase-template.entity";
@@ -51,8 +51,8 @@ export class ProjectTemplatesService implements OnModuleInit {
       phases.push(this.phaseRepo.create({
         id: phaseId, name: p.phase, order: pi, critical: p.critical, discipline: p.discipline ?? null,
       }));
-      p.tasks.forEach(([name, dayOffset, duration], ti) => {
-        tasks.push(this.taskRepo.create({ id: newId(), phaseTemplateId: phaseId, name, dayOffset, duration, order: ti }));
+      p.tasks.forEach(([name, dayOffset, duration, description], ti) => {
+        tasks.push(this.taskRepo.create({ id: newId(), phaseTemplateId: phaseId, name, description: description ?? "", dayOffset, duration, order: ti }));
       });
     });
     await this.phaseRepo.save(phases);
@@ -77,7 +77,7 @@ export class ProjectTemplatesService implements OnModuleInit {
     return phases.map(p => ({
       id: p.id, name: p.name, order: p.order, critical: p.critical, discipline: p.discipline,
       tasks: (tasksByPhase.get(p.id) ?? []).map(t => ({
-        id: t.id, name: t.name, dayOffset: t.dayOffset, duration: t.duration, order: t.order,
+        id: t.id, name: t.name, description: t.description ?? "", dayOffset: t.dayOffset, duration: t.duration, order: t.order,
       })),
     }));
   }
@@ -89,7 +89,7 @@ export class ProjectTemplatesService implements OnModuleInit {
       phase: p.name,
       critical: p.critical,
       discipline: p.discipline ?? undefined,
-      tasks: p.tasks.map(t => [t.name, t.dayOffset, t.duration] as [string, number, number]),
+      tasks: p.tasks.map(t => [t.name, t.dayOffset, t.duration, t.description] as [string, number, number, string]),
     }));
   }
 
@@ -99,8 +99,30 @@ export class ProjectTemplatesService implements OnModuleInit {
     const siblings = await this.taskRepo.find({ where: { phaseTemplateId: phaseId }, select: { order: true } });
     const nextOrder = siblings.length ? Math.max(...siblings.map(s => s.order)) + 1 : 0;
     await this.taskRepo.save(this.taskRepo.create({
-      id: newId(), phaseTemplateId: phaseId, name: dto.name, dayOffset: dto.dayOffset, duration: dto.duration, order: nextOrder,
+      id: newId(), phaseTemplateId: phaseId, name: dto.name, description: dto.description ?? "", dayOffset: dto.dayOffset, duration: dto.duration, order: nextOrder,
     }));
+    return this.getTemplate();
+  }
+
+  /**
+   * Renumber a phase's tasks to the given order. The incoming list must be
+   * exactly this phase's task ids — no adds, drops, or foreign ids — so the
+   * `order` column stays a clean 0..n-1 sequence with no gaps or duplicates.
+   */
+  async reorderTasks(phaseId: string, taskIds: string[]): Promise<PhaseTemplateResponse[]> {
+    const phase = await this.phaseRepo.findOneBy({ id: phaseId });
+    if (!phase) throw new NotFoundException(templateMessages.phaseNotFound);
+
+    const tasks = await this.taskRepo.find({ where: { phaseTemplateId: phaseId } });
+    const known = new Set(tasks.map(t => t.id));
+    const unique = new Set(taskIds);
+    if (taskIds.length !== tasks.length || unique.size !== taskIds.length || !taskIds.every(id => known.has(id))) {
+      throw new BadRequestException(templateMessages.reorderMismatch);
+    }
+
+    const orderById = new Map(taskIds.map((id, i) => [id, i]));
+    for (const t of tasks) t.order = orderById.get(t.id)!;
+    await this.taskRepo.save(tasks);
     return this.getTemplate();
   }
 
@@ -108,6 +130,7 @@ export class ProjectTemplatesService implements OnModuleInit {
     const task = await this.taskRepo.findOneBy({ id: taskId });
     if (!task) throw new NotFoundException(templateMessages.taskNotFound);
     if (dto.name !== undefined) task.name = dto.name;
+    if (dto.description !== undefined) task.description = dto.description;
     if (dto.dayOffset !== undefined) task.dayOffset = dto.dayOffset;
     if (dto.duration !== undefined) task.duration = dto.duration;
     if (dto.order !== undefined) task.order = dto.order;
