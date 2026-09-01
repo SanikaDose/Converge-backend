@@ -37,12 +37,17 @@ export class Ticket {
   @Column("varchar", { nullable: true })
   phase: string | null;
 
+  /** Primary assignee — mirrors assignees[0], kept for the single-avatar display and FK. */
   @Column("varchar", { name: "assigned_to", nullable: true })
   assignedTo: string | null;
 
   @ManyToOne(() => Employee, { nullable: true, onDelete: "SET NULL" })
   @JoinColumn({ name: "assigned_to" })
   assignee: Employee | null;
+
+  /** All assignees (multi-select). assignedTo mirrors the first; empty means unassigned. */
+  @Column("jsonb", { default: () => "'[]'" })
+  assignees: string[];
 
   @Column("varchar", { default: "Medium" })
   priority: Priority;

@@ -47,18 +47,16 @@ export class TicketsService {
       );
     }
 
-    let assignee: Employee | null = null;
+    // Multi-assignee: accept `assignees`, fall back to the single `assignedTo`.
+    const requestedIds = Array.from(new Set(
+      (dto.assignees && dto.assignees.length ? dto.assignees : (dto.assignedTo ? [dto.assignedTo] : [])).filter(Boolean),
+    ));
 
-    if (dto.assignedTo) {
-      assignee = await this.employeeRepo.findOneBy({
-        id: dto.assignedTo,
-      });
-
-      if (!assignee) {
-        throw new NotFoundException(
-          "Assigned employee not found"
-        );
-      }
+    const assignees: Employee[] = [];
+    for (const empId of requestedIds) {
+      const emp = await this.employeeRepo.findOneBy({ id: empId });
+      if (!emp) throw new NotFoundException("Assigned employee not found");
+      assignees.push(emp);
     }
 
     const maxSeq = await this.ticketRepo.maximum("seq");
@@ -70,26 +68,23 @@ export class TicketsService {
       projectId: dto.projectId,
       projectName: project.name,
       phase: dto.phase || null,
-      assignedTo: assignee?.id || null,
+      // assignedTo mirrors the first owner so single-avatar display + the FK stay valid.
+      assignedTo: assignees[0]?.id || null,
+      assignees: assignees.map(a => a.id),
       priority: dto.priority || "Medium",
       status: "Open",
       createdAt: todayISO(),
-      assignee,
+      assignee: assignees[0] ?? null,
     });
 
     const savedTicket = await this.ticketRepo.save(ticket);
 
-    if (assignee) {
+    // Notify every assignee.
+    for (const assignee of assignees) {
       try {
-        await this.notificationsService.notifyTicketAssigned(
-          savedTicket,
-          assignee,
-        );
+        await this.notificationsService.notifyTicketAssigned(savedTicket, assignee);
       } catch (error) {
-        console.error(
-          `Failed to send ticket notifications for ticket ${savedTicket.id}`,
-          error,
-        );
+        console.error(`Failed to send ticket notifications for ticket ${savedTicket.id}`, error);
       }
     }
 
@@ -100,6 +95,11 @@ export class TicketsService {
     const ticket = await this.ticketRepo.findOneBy({ id });
     if (!ticket) throw new NotFoundException(ticketMessages.notFound);
     Object.assign(ticket, dto);
+    // Keep the primary assignee mirror in step when assignees is edited.
+    if (dto.assignees !== undefined) {
+      ticket.assignees = dto.assignees;
+      ticket.assignedTo = dto.assignees[0] ?? null;
+    }
 
     // The closing date is owned here, not sent by the client, so it can't be
     // backdated or skipped. Resolved→Closed keeps the original stamp: that's

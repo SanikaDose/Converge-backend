@@ -1,4 +1,4 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { PRIORITIES } from "../../constants/enums";
 import type { Priority } from "../../utils/types";
 
@@ -23,6 +23,11 @@ export class CreateTicketDto {
   @IsString()
   @IsOptional()
   assignedTo?: string | null;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  assignees?: string[];
 
   @IsIn(PRIORITIES)
   @IsOptional()

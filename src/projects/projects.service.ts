@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { Project } from "../entities/project.entity";
@@ -107,6 +107,7 @@ export class ProjectsService {
       const bucket = projectStatusFromPhases(phaseRows);
       return {
         id: project.id, name: project.name, type: project.type, customer: project.customer,
+        location: project.location,
         owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
         updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
         financialYear: project.financialYear,
@@ -127,6 +128,14 @@ export class ProjectsService {
   }
 
   async create(dto: CreateProjectDto) {
+    // Reject a duplicate by name (case- and whitespace-insensitive), so the
+    // same project can't be created twice.
+    const duplicate = await this.projectRepo
+      .createQueryBuilder("p")
+      .where("LOWER(TRIM(p.name)) = LOWER(TRIM(:name))", { name: dto.name })
+      .getExists();
+    if (duplicate) throw new ConflictException(projectMessages.duplicateName);
+
     const weekOff = dto.weekOff && dto.weekOff.length ? dto.weekOff.slice(0, 2) : DEFAULT_WEEK_OFF;
     const disciplines = dto.disciplines ?? [];
     const id = newId();

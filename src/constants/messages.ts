@@ -7,6 +7,7 @@
  */
 export const projectMessages = {
   notFound: 'Project not found.',
+  duplicateName: 'A project with this name already exists.',
 };
 
 export const ticketMessages = {
