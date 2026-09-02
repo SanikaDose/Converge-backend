@@ -30,7 +30,10 @@ import { SeedModule } from "./seed/seed.module";
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      // Hosted Postgres (Render, Railway, Neon, Supabase) requires TLS 
+      // Which Postgres schema the tables live in. Defaults to "public"; set
+      // DB_SCHEMA=pmt_converge on the hosted DB where the schema was renamed.
+      schema: process.env.DB_SCHEMA || "public",
+      // Hosted Postgres (Render, Railway, Neon, Supabase) requires TLS
 
       ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
       entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, PhaseTemplate, TaskTemplate],
