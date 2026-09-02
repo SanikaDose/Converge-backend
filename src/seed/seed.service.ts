@@ -37,6 +37,15 @@ function findTask(tasks: PlainTask[], phases: PlainPhase[], phaseIndex: number, 
  * in-flight so "Delayed" isn't always zero, tasks spanning today are
  * In Progress, two-out-of-three get a round-robin owner).
  */
+/** "Sanika Dose" → "sanikad@elansoltech.com" (firstname + last-name initial). */
+function deriveEmail(name: string): string {
+  const parts = name.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const first = parts[0] ?? "user";
+  const lastInitial = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  const local = `${first}${lastInitial}`.replace(/[^a-z0-9]/g, "") || "user";
+  return `${local}@elansoltech.com`;
+}
+
 function simulateProgress(tasks: PlainTask[], today: string, weekOff: WeekDay[]): void {
   tasks.forEach((t, i) => {
     if (i % 3 !== 0) t.assignedTo = EMPLOYEE_CYCLE[i % EMPLOYEE_CYCLE.length];
@@ -168,21 +177,26 @@ export class SeedService implements OnModuleInit {
    */
   async ensureCredentials(): Promise<void> {
     const credentials = buildSeedCredentials();
+    const credById = new Map(credentials.map(c => [c.id, c]));
     // Same one-read-then-diff shape as ensureOrgDirectory, for the same
     // reason. Steady state is zero writes, so this usually costs one SELECT.
     const employees = await this.employeeRepo.find();
-    const employeeById = new Map(employees.map(e => [e.id, e]));
 
     const toSave: Employee[] = [];
-    for (const cred of credentials) {
-      const employee = employeeById.get(cred.id);
-      if (!employee) continue;
+    for (const employee of employees) {
       let dirty = false;
-      if (!employee.employeeCode) { employee.employeeCode = cred.employeeCode; dirty = true; }
-      if (!employee.appRole) { employee.appRole = cred.appRole; dirty = true; }
-      // bcrypt is intentionally slow — only hash for rows that actually
-      // need one, never once per employee per boot.
-      if (!employee.passwordHash) { employee.passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10); dirty = true; }
+      const cred = credById.get(employee.id);
+      if (cred) {
+        if (!employee.employeeCode) { employee.employeeCode = cred.employeeCode; dirty = true; }
+        if (!employee.appRole) { employee.appRole = cred.appRole; dirty = true; }
+        // bcrypt is intentionally slow — only hash for rows that actually
+        // need one, never once per employee per boot.
+        if (!employee.passwordHash) { employee.passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10); dirty = true; }
+      }
+      // Login is by email — backfill any blank address as firstname+lastinitial
+      // @elansoltech.com (e.g. "Sanika Dose" → sanikad@elansoltech.com). Only
+      // fills blanks, so a manually corrected address is never overwritten.
+      if (!employee.email) { employee.email = deriveEmail(employee.name); dirty = true; }
       if (dirty) toSave.push(employee);
     }
 

@@ -21,6 +21,8 @@ export interface AuthedUserInterface {
   id: string;
   name: string;
   employeeCode: string;
+  /** Login identifier now — the email the user signs in with. */
+  email: string;
   /** Directory job title. */
   role: OrgRole;
   /** Application access role — drives the frontend's permission table. */

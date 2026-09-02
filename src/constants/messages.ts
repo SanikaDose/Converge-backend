@@ -30,7 +30,7 @@ export const authMessages = {
    * See auth.service.ts, which also compares against a dummy hash so the
    * response timing doesn't leak the same thing.
    */
-  invalidCredentials: 'Invalid employee ID or password.',
+  invalidCredentials: 'Invalid email or password.',
   missingToken: 'Authentication required.',
   invalidToken: 'Session expired. Please sign in again.',
   currentPasswordWrong: 'Your current password is incorrect.',

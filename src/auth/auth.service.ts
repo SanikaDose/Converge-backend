@@ -26,18 +26,22 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto): Promise<LoginResponseInterface> {
-    const code = dto.employeeCode.trim().toUpperCase();
-    const employee = await this.employeeRepo.findOne({
-      where: { employeeCode: code },
-      relations: { team: true },
-    });
+    // Login is by email now. Match case-insensitively so "Sanika@…" == the
+    // seeded lowercase address; the lookup can't be a plain findOne because
+    // stored casing isn't guaranteed.
+    const email = dto.email.trim().toLowerCase();
+    const employee = await this.employeeRepo
+      .createQueryBuilder("employee")
+      .leftJoinAndSelect("employee.team", "team")
+      .where("LOWER(employee.email) = :email", { email })
+      .getOne();
 
     // Always run a compare, even with no match — see DUMMY_HASH above.
     const hash = employee?.passwordHash ?? DUMMY_HASH;
     const ok = await bcrypt.compare(dto.password, hash);
 
     // One generic message for both failure modes: telling the caller which
-    // half was wrong would let them enumerate valid employee codes.
+    // half was wrong would let them enumerate valid accounts.
     if (!employee || !employee.passwordHash || !ok) {
       throw new UnauthorizedException(authMessages.invalidCredentials);
     }
@@ -116,6 +120,7 @@ function toAuthedUser(employee: Employee): AuthedUserInterface {
     id: employee.id,
     name: employee.name,
     employeeCode: employee.employeeCode!,
+    email: employee.email ?? "",
     role: employee.role,
     appRole: employee.appRole ?? "User",
     teamId: employee.teamId,

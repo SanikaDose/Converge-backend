@@ -79,10 +79,11 @@ export class TicketsService {
 
     const savedTicket = await this.ticketRepo.save(ticket);
 
-    // Notify every assignee.
-    for (const assignee of assignees) {
+    // One call for the whole ticket: personal channels fan out per assignee,
+    // the shared team-space message is sent once (see NotificationsService).
+    if (assignees.length) {
       try {
-        await this.notificationsService.notifyTicketAssigned(savedTicket, assignee);
+        await this.notificationsService.notifyTicketAssigned(savedTicket, assignees);
       } catch (error) {
         console.error(`Failed to send ticket notifications for ticket ${savedTicket.id}`, error);
       }
