@@ -12,15 +12,27 @@ async function bootstrap() {
 
   app.setGlobalPrefix(apiControllerPath.main.root);
 
-  // CORS_ORIGIN may be a single origin or a comma-separated list (e.g. the
-  // Vercel URL + localhost). Split it so multiple exact origins are allowed;
-  // a lone value still works. Origins must have no trailing slash.
-  const corsOrigins = config
+  // CORS_ORIGIN may be a single origin, a comma-separated list (e.g. the
+  // Vercel URL + localhost), or "*" to reflect any origin. Trailing slashes
+  // are tolerated on both the configured values and the incoming Origin, since
+  // an exact string mismatch is the usual cause of "No Access-Control-Allow-
+  // Origin header" preflight failures. Auth is by bearer token (not cookies),
+  // so reflecting an allowed origin carries no credential risk.
+  const allowed = config
     .get<string>("CORS_ORIGIN", Config.DEFAULT_CORS_ORIGIN)
     .split(",")
     .map((o) => o.trim().replace(/\/+$/, ""))
     .filter(Boolean);
-  app.enableCors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins });
+  const allowAll = allowed.includes("*");
+  app.enableCors({
+    origin: allowAll
+      ? true
+      : (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+          // No Origin header = non-browser client (curl, health check) — allow.
+          if (!origin) return cb(null, true);
+          cb(null, allowed.includes(origin.replace(/\/+$/, "")));
+        },
+  });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const port = config.get<number>("PORT", Config.DEFAULT_PORT);
