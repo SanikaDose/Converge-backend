@@ -1,4 +1,4 @@
-import type { AppRole, OrgRole, PhaseDiscipline, Priority, ProjectType, TaskStatus, TicketStatus } from '../utils/types';
+import type { AppRole, MiscTaskStatus, OrgRole, PhaseDiscipline, Priority, ProjectType, TaskStatus, TicketStatus } from '../utils/types';
 
 /**
  * The allowed values for every domain union, as runtime arrays.
@@ -25,7 +25,9 @@ export const FINANCIAL_YEARS: string[] = ['FY26-27', 'FY25-26', 'FY24-25'];
 
 export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Critical'];
 
-export const TICKET_STATUSES: TicketStatus[] = ['Open', 'In Progress', 'Resolved', 'Closed'];
+export const TICKET_STATUSES: TicketStatus[] = ['Open', 'In Progress', 'Resolved', 'Closed', 'Reopened'];
+
+export const MISC_TASK_STATUSES: MiscTaskStatus[] = ['To Do', 'In Progress', 'On Hold', 'Completed'];
 
 export const TASK_STATUSES: TaskStatus[] = ['Not Started', 'In Progress', 'Pending Approval', 'Delayed', 'Blocked', 'Completed'];
 

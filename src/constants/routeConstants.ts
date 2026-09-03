@@ -36,6 +36,14 @@ export const apiControllerPath = {
     updateById: ':id',
   },
 
+  miscTasks: {
+    root: 'misc-tasks',
+    getList: '',
+    create: '',
+    updateById: ':id',
+    deleteById: ':id',
+  },
+
   projectTemplates: {
     root: 'project-templates',
     get: '',

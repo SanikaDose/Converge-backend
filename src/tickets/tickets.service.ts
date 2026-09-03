@@ -95,8 +95,10 @@ export class TicketsService {
   async update(id: string, dto: UpdateTicketDto): Promise<Ticket> {
     const ticket = await this.ticketRepo.findOneBy({ id });
     if (!ticket) throw new NotFoundException(ticketMessages.notFound);
-    // A closed ticket is final — it can never be reopened to another status.
-    if (ticket.status === "Closed" && dto.status && dto.status !== "Closed") {
+    // A closed ticket can only move to "Reopened" (the reopen action) — no other
+    // status change is allowed on a closed ticket. Reopening clears resolvedAt
+    // below, so the ticket reads as active work again.
+    if (ticket.status === "Closed" && dto.status && dto.status !== "Closed" && dto.status !== "Reopened") {
       throw new ConflictException(ticketMessages.closedFinal);
     }
     Object.assign(ticket, dto);

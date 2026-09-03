@@ -13,7 +13,9 @@ export type StatusColorKey = "green" | "amber" | "red" | "slate" | "violet" | "o
 export type Priority = "Low" | "Medium" | "High" | "Critical";
 export type ProjectType = "Product" | "Solution";
 export type ProjectBucket = "Delayed" | "In Progress" | "On Track";
-export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed";
+export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Reopened";
+/** Miscellaneous (ad-hoc) task status — deliberately distinct from TaskStatus/TicketStatus. */
+export type MiscTaskStatus = "To Do" | "In Progress" | "On Hold" | "Completed";
 /**
  * Directory role. Replaced the earlier "Team Lead" | "Developer" pair: the
  * directory now distinguishes only who administers the app from everyone

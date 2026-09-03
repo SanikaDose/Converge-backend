@@ -36,7 +36,7 @@ export class NotificationFeedService {
       this.ticketRepo
         .createQueryBuilder("ticket")
         .where("ticket.assignees @> CAST(:contains AS jsonb)", { contains })
-        .andWhere("ticket.status IN (:...open)", { open: ["Open", "In Progress"] })
+        .andWhere("ticket.status IN (:...open)", { open: ["Open", "In Progress", "Reopened"] })
         .getMany(),
     ]);
 
