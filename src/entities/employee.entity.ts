@@ -35,6 +35,20 @@ export class Employee {
   @Column("varchar", { name: "app_role", nullable: true })
   appRole: AppRole | null;
 
+  /**
+   * Forgot-password email OTP — bcrypt hash (never the code itself), its
+   * expiry, and a wrong-attempt counter. All null when no reset is in flight;
+   * cleared once the OTP is used or expires. See AuthService.forgotPassword.
+   */
+  @Column("varchar", { name: "reset_otp_hash", nullable: true })
+  resetOtpHash: string | null;
+
+  @Column("timestamptz", { name: "reset_otp_expires_at", nullable: true })
+  resetOtpExpiresAt: Date | null;
+
+  @Column("int", { name: "reset_otp_attempts", default: 0 })
+  resetOtpAttempts: number;
+
   @Column("varchar", { name: "team_id" })
   teamId: string;
 

@@ -18,6 +18,9 @@ export const apiControllerPath = {
     me: 'me',
     updateProfile: 'profile',
     changePassword: 'change-password',
+    forgotPassword: 'forgot-password',
+    verifyOtp: 'verify-otp',
+    resetPassword: 'reset-password',
   },
 
   projects: {

@@ -13,6 +13,6 @@ import { BrandingController } from "./branding.controller";
     WhatsAppService,
     GoogleChatService,
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsService, EmailService],
 })
 export class NotificationsModule {}

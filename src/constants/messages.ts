@@ -36,4 +36,9 @@ export const authMessages = {
   currentPasswordWrong: 'Your current password is incorrect.',
   samePassword: 'The new password must be different from your current one.',
   accountNotFound: 'Account no longer exists.',
+  // Deliberately generic — the same message whether the code is wrong, expired,
+  // or was never issued, so it can't be used to probe accounts.
+  otpInvalid: 'The code is invalid or has expired. Please request a new one.',
+  otpTooManyAttempts: 'Too many incorrect attempts. Please request a new code.',
+  resetTokenInvalid: 'Your reset session has expired. Please start again.',
 };

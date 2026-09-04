@@ -7,10 +7,12 @@ import { Config } from "../config/config";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Employee]),
+    NotificationsModule,
     // Global so the guard — which is registered app-wide below — can inject
     // JwtService without every other module importing JwtModule.
     JwtModule.register({
