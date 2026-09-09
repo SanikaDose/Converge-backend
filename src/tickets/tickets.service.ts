@@ -101,6 +101,7 @@ export class TicketsService {
     if (ticket.status === "Closed" && dto.status && dto.status !== "Closed" && dto.status !== "Reopened") {
       throw new ConflictException(ticketMessages.closedFinal);
     }
+    const wasClosed = ticket.status === "Closed";
     Object.assign(ticket, dto);
     // Keep the primary assignee mirror in step when assignees is edited.
     if (dto.assignees !== undefined) {
@@ -115,6 +116,30 @@ export class TicketsService {
     if (isDone && !ticket.resolvedAt) ticket.resolvedAt = todayISO();
     if (!isDone) ticket.resolvedAt = null;
 
-    return this.ticketRepo.save(ticket);
+    const saved = await this.ticketRepo.save(ticket);
+
+    // On the transition *into* Closed, notify the related users (email) + the
+    // team space (Google Chat). Only on the edge, so re-saving a closed ticket
+    // doesn't spam. Failures are swallowed so they never fail the update.
+    if (!wasClosed && saved.status === "Closed") {
+      try {
+        const assignees = await this.loadAssignees(saved.assignees);
+        await this.notificationsService.notifyTicketClosed(saved, assignees);
+      } catch (error) {
+        console.error(`Failed to send close notifications for ticket ${saved.id}`, error);
+      }
+    }
+
+    return saved;
+  }
+
+  /** Resolve assignee ids to Employee rows (skips any that no longer exist). */
+  private async loadAssignees(ids: string[]): Promise<Employee[]> {
+    const employees: Employee[] = [];
+    for (const empId of ids ?? []) {
+      const emp = await this.employeeRepo.findOneBy({ id: empId });
+      if (emp) employees.push(emp);
+    }
+    return employees;
   }
 }

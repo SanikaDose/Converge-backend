@@ -17,9 +17,15 @@ import type { MiscTaskInterface } from "./interface/misc-task.interface";
 export class MiscTasksController {
   constructor(private readonly service: MiscTasksService) {}
 
-  private assertAdmin(user: JwtPayload) {
-    if (user.appRole !== "Admin") throw new ForbiddenException("Only an administrator can manage tasks.");
+
+  private assertCanManage(user: JwtPayload) {
+    if (user.appRole !== "Admin" && user.appRole !== "Lead") {
+      throw new ForbiddenException(
+        "Only an administrator or lead can manage tasks.",
+      );
+    }
   }
+  
 
   @Get(apiControllerPath.miscTasks.getList)
   findAll(): Promise<MiscTaskInterface[]> {
@@ -28,19 +34,19 @@ export class MiscTasksController {
 
   @Post(apiControllerPath.miscTasks.create)
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateMiscTaskDto): Promise<MiscTaskInterface> {
-    this.assertAdmin(user);
+    this.assertCanManage(user);
     return this.service.create(dto, user.sub);
   }
 
   @Patch(apiControllerPath.miscTasks.updateById)
   update(@CurrentUser() user: JwtPayload, @Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateMiscTaskDto): Promise<MiscTaskInterface> {
-    this.assertAdmin(user);
+    this.assertCanManage(user);
     return this.service.update(id, dto);
   }
 
   @Delete(apiControllerPath.miscTasks.deleteById)
   remove(@CurrentUser() user: JwtPayload, @Param("id", ParseUUIDPipe) id: string): Promise<{ id: string }> {
-    this.assertAdmin(user);
+    this.assertCanManage(user);
     return this.service.remove(id);
   }
 }

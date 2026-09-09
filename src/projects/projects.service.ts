@@ -57,6 +57,7 @@ function toMeta(project: Project) {
     owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
     createdAt: project.createdAt, updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
     financialYear: project.financialYear, warranty: project.warranty ?? null, weekOff: project.weekOff,
+    relatedRepositories: project.relatedRepositories ?? [],
   };
 }
 
@@ -68,7 +69,7 @@ export class ProjectsService {
     @InjectRepository(Task) private readonly taskRepo: Repository<Task>,
     private readonly dataSource: DataSource,
     private readonly templates: ProjectTemplatesService,
-  ) {}
+  ) { }
 
   /**
    * Fetches every project's phases and tasks in two queries and groups them
@@ -152,9 +153,19 @@ export class ProjectsService {
     // roll the whole thing back rather than leave a broken project behind.
     await this.dataSource.transaction(async (manager) => {
       const project = manager.create(Project, {
-        id, name: dto.name, type: dto.type, customer: dto.customer, location: dto.location || null,
-        ownerId: dto.owner || null, startDate: dto.startDate, endDate: dto.endDate,
-        createdAt: todayISO(), updatedAt: new Date(), financialYear: dto.financialYear || null, weekOff,
+        id,
+        name: dto.name,
+        type: dto.type,
+        customer: dto.customer,
+        location: dto.location || null,
+        ownerId: dto.owner || null,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        createdAt: todayISO(),
+        updatedAt: new Date(),
+        financialYear: dto.financialYear || null,
+        weekOff,
+        relatedRepositories: dto.relatedRepositories ?? [],
       });
       await manager.save(project);
       await manager.save(plainPhases.map(p => manager.create(Phase, { ...p, projectId: id })));
@@ -184,6 +195,9 @@ export class ProjectsService {
         if (dto.meta.financialYear !== undefined) project.financialYear = dto.meta.financialYear;
         if (dto.meta.warranty !== undefined) project.warranty = dto.meta.warranty;
         if (dto.meta.weekOff !== undefined) project.weekOff = dto.meta.weekOff;
+        if (dto.meta.relatedRepositories !== undefined) {
+            project.relatedRepositories = dto.meta.relatedRepositories;
+        }
       }
 
       // Bump "last updated" on any change — a task/phase edit counts too, so
@@ -238,16 +252,16 @@ export class ProjectsService {
       const assignees = Array.isArray(t.assignees) ? t.assignees.filter(Boolean) : (t.assignedTo ? [t.assignedTo] : []);
       const assignedTo = assignees[0] ?? null;
       return manager.create(Task, {
-      id: t.id, phaseId: t.phaseId, projectId, order: t.order, name: t.name,
-      description: t.description ?? "", assignedTo, assignees, priority: (t.priority as Task["priority"]) ?? "Medium",
-      dependencies: t.dependencies ?? [], dayOffset: t.dayOffset, duration: t.duration,
-      plannedStart: t.plannedStart, plannedFinish: t.plannedFinish,
-      actualStart: t.actualStart ?? null, actualFinish: t.actualFinish ?? null,
-      status: (t.status as Task["status"]) ?? "Not Started",
-      pendingChange: (t.pendingChange as Task["pendingChange"]) ?? null,
-      achievement: (t.achievement as Task["achievement"]) ?? null,
-      history: (t.history as Task["history"]) ?? [],
-      checklist: (t.checklist as Task["checklist"]) ?? [],
+        id: t.id, phaseId: t.phaseId, projectId, order: t.order, name: t.name,
+        description: t.description ?? "", assignedTo, assignees, priority: (t.priority as Task["priority"]) ?? "Medium",
+        dependencies: t.dependencies ?? [], dayOffset: t.dayOffset, duration: t.duration,
+        plannedStart: t.plannedStart, plannedFinish: t.plannedFinish,
+        actualStart: t.actualStart ?? null, actualFinish: t.actualFinish ?? null,
+        status: (t.status as Task["status"]) ?? "Not Started",
+        pendingChange: (t.pendingChange as Task["pendingChange"]) ?? null,
+        achievement: (t.achievement as Task["achievement"]) ?? null,
+        history: (t.history as Task["history"]) ?? [],
+        checklist: (t.checklist as Task["checklist"]) ?? [],
       });
     }));
   }

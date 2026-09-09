@@ -1,5 +1,5 @@
 import type { PlainPhase, PlainTask } from '../../utils/business-logic';
-import type { ProjectBucket, ProjectType, WeekDay } from '../../utils/types';
+import type { ProjectBucket, ProjectType, RelatedRepository, WeekDay } from '../../utils/types';
 
 /**
  * Response contracts for the projects endpoints, following Scout's
@@ -57,6 +57,7 @@ export interface ProjectMetaInterface {
   endDate: string;
   createdAt: string;
   weekOff: WeekDay[];
+  relatedRepositories: RelatedRepository[];
 }
 
 /** GET /projects/:id — the full editable document. */

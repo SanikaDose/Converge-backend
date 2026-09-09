@@ -8,6 +8,8 @@ export interface TicketChatNotificationParams {
   assignedTo: string;
   dueDate?: string | null;
   ticketUrl?: string;
+  /** "assigned" (default) or "closed" — switches the card copy only. */
+  variant?: "assigned" | "closed";
 }
 
 /**
@@ -48,14 +50,18 @@ export class GoogleChatService {
     }
   }
 
-  async sendTicketAssignedChat(params: TicketChatNotificationParams): Promise<void> {
+  async sendTicketChat(params: TicketChatNotificationParams): Promise<void> {
     const url = process.env.GOOGLE_CHAT_WEBHOOK_URL;
     if (!url) {
       this.logger.warn("Google Chat skipped: GOOGLE_CHAT_WEBHOOK_URL is not set");
       return;
     }
 
-    const { ticketNumber, projectName, priority, issue, assignedTo, dueDate, ticketUrl } = params;
+    const { ticketNumber, projectName, priority, issue, assignedTo, dueDate, ticketUrl, variant = "assigned" } = params;
+    const closed = variant === "closed";
+    const headerTitle = closed ? "Ticket closed" : "New ticket assigned";
+    const assigneeLabel = closed ? "Was assigned to" : "Assigned to";
+    const buttonText = closed ? "View ticket" : "Open ticket";
     const logoUrl = this.logoUrl();
 
     // A decoratedText row: small label on top, value below. No leading icons —
@@ -68,14 +74,14 @@ export class GoogleChatService {
       field("Issue", issue),
       field("Project", projectName),
       field("Priority", `${this.priorityDot(priority)} ${priority}`),
-      field("Assigned to", assignedTo),
+      field(assigneeLabel, assignedTo),
     ];
     if (dueDate) widgets.push(field("Due", dueDate));
     if (ticketUrl) {
       widgets.push({
         buttonList: {
           buttons: [{
-            text: "Open ticket",
+            text: buttonText,
             onClick: { openLink: { url: ticketUrl } },
           }],
         },
@@ -84,12 +90,12 @@ export class GoogleChatService {
 
     const payload = {
       // Fallback shown in notifications / clients that can't render the card.
-      text: `New ticket assigned — ${ticketNumber}: ${issue}`,
+      text: `${headerTitle} — ${ticketNumber}: ${issue}`,
       cardsV2: [{
         cardId: `ticket-${ticketNumber}`,
         card: {
           header: {
-            title: "New ticket assigned",
+            title: headerTitle,
             subtitle: `${ticketNumber} · ${projectName}`,
             ...(logoUrl ? { imageUrl: logoUrl, imageType: "CIRCLE", imageAltText: "Converge" } : {}),
           },

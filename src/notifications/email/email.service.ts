@@ -53,7 +53,7 @@ export class EmailService {
         }
     }
 
-    async sendTicketAssignedEmail(params: {
+    async sendTicketEmail(params: {
         to: string;
         ticketNumber: string;
         projectName: string;
@@ -62,6 +62,8 @@ export class EmailService {
         assignedTo: string;
         dueDate?: string | null;
         ticketUrl?: string;
+        /** "assigned" (default) or "closed" — switches the copy only. */
+        variant?: "assigned" | "closed";
     }) {
         const {
             to,
@@ -72,7 +74,23 @@ export class EmailService {
             assignedTo,
             dueDate,
             ticketUrl,
+            variant = "assigned",
         } = params;
+
+        const closed = variant === "closed";
+        const subject = closed
+            ? `Ticket closed — ${ticketNumber}: ${issue}`
+            : `New ticket assigned — ${ticketNumber}: ${issue}`;
+        const eyebrow = closed ? "Ticket closed" : "New ticket assigned";
+        const greeting = closed
+            ? `Hi ${this.esc(assignedTo)}, a ticket you're assigned to has been closed.`
+            : `Hi ${this.esc(assignedTo)}, a ticket has been assigned to you.`;
+        const ctaLabel = closed ? "View ticket &rarr;" : "Open ticket &rarr;";
+        const footerNote = closed
+            ? "You're receiving this because you were assigned this now-closed ticket in Converge Projects."
+            : "You're receiving this because you were assigned this ticket in Converge Projects.";
+        const textLead = closed ? "A ticket you're assigned to has been closed" : "New ticket assigned to you";
+        const eyebrowColor = closed ? "#16a34a" : "#2563eb";
 
         const prio = this.priorityColor(priority);
         // Logo is attached inline (CID) rather than linked, so it renders in the
@@ -92,10 +110,10 @@ export class EmailService {
             await this.transporter.sendMail({
                 from: `"Converge Projects" <${process.env.SMTP_USER}>`,
                 to,
-                subject: `New ticket assigned — ${ticketNumber}: ${issue}`,
+                subject,
 
                 text: [
-                    `New ticket assigned to you`,
+                    textLead,
                     ``,
                     `Ticket:      ${ticketNumber}`,
                     `Issue:       ${issue}`,
@@ -140,9 +158,9 @@ export class EmailService {
           <!-- Title -->
           <tr>
             <td style="padding:24px 24px 8px;">
-              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#2563eb;">New ticket assigned</div>
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${eyebrowColor};">${eyebrow}</div>
               <div style="margin-top:6px;font-size:20px;font-weight:700;color:#0f172a;line-height:1.3;">${this.esc(issue)}</div>
-              <div style="margin-top:4px;font-size:13px;color:#64748b;">Hi ${this.esc(assignedTo)}, a ticket has been assigned to you.</div>
+              <div style="margin-top:4px;font-size:13px;color:#64748b;">${greeting}</div>
             </td>
           </tr>
 
@@ -165,7 +183,7 @@ export class EmailService {
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="border-radius:8px;background:#2563eb;">
-                    <a href="${ticketUrl}" style="display:inline-block;padding:12px 26px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Open ticket &rarr;</a>
+                    <a href="${ticketUrl}" style="display:inline-block;padding:12px 26px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">${ctaLabel}</a>
                   </td>
                 </tr>
               </table>
@@ -175,7 +193,7 @@ export class EmailService {
           <!-- Footer -->
           <tr>
             <td style="padding:16px 24px;background:#f8fafc;border-top:1px solid #eef1f5;color:#94a3b8;font-size:12px;line-height:1.5;">
-              You're receiving this because you were assigned this ticket in Converge Projects.
+              ${footerNote}
             </td>
           </tr>
         </table>

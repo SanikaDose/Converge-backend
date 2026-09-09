@@ -21,9 +21,9 @@ export type MiscTaskStatus = "To Do" | "In Progress" | "On Hold" | "Completed";
  * directory now distinguishes only who administers the app from everyone
  * else, so the two roles line up 1:1 with AppRole below.
  */
-export type OrgRole = "Admin" | "User";
+export type OrgRole = "Admin" | "User" | "Lead";
 /** Application access role — distinct from OrgRole (the directory job title). */
-export type AppRole = "Admin" | "User";
+export type AppRole = "Admin" | "User" | "Lead";
 
 /** 0 = Sunday … 6 = Saturday, matching JS Date#getUTCDay(). */
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -63,6 +63,11 @@ export interface PendingChange {
 export interface Achievement {
   label: string;
   days: number;
+}
+
+export interface RelatedRepository {
+  name: string;
+  url: string;
 }
 
 /** Warranty details captured once a project is completed. */
