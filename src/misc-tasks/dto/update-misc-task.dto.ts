@@ -37,6 +37,14 @@ export class UpdateMiscTaskDto {
   @IsOptional()
   dueDate?: string | null;
 
+  @IsString()
+  @IsOptional()
+  startDate?: string | null;
+
+  @IsString()
+  @IsOptional()
+  endDate?: string | null;
+
   @IsArray()
   @IsOptional()
   checklist?: unknown[];

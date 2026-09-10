@@ -44,6 +44,7 @@ export const apiControllerPath = {
     getList: '',
     create: '',
     updateById: ':id',
+    updateStatusById: ':id/status',
     deleteById: ':id',
   },
 
@@ -74,5 +75,6 @@ export const apiControllerPath = {
   notifications: {
     root: 'notifications',
     getList: '',
+    markRead: 'mark-read',
   },
 } as const;

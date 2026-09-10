@@ -222,6 +222,162 @@ export class EmailService {
         }
     }
 
+    /**
+     * Misc-task notification — assigned to you, or one you're on completed.
+     * Mirrors the ticket email's look (brand header, details table, CTA) with
+     * task-flavoured copy. Green eyebrow for "completed", blue for "assigned".
+     */
+    async sendMiscTaskEmail(params: {
+        to: string;
+        taskTitle: string;
+        projectName?: string | null;
+        priority: string;
+        assignedTo: string;
+        dueDate?: string | null;
+        taskUrl?: string;
+        variant?: "assigned" | "completed";
+    }) {
+        const {
+            to,
+            taskTitle,
+            projectName,
+            priority,
+            assignedTo,
+            dueDate,
+            taskUrl,
+            variant = "assigned",
+        } = params;
+
+        const completed = variant === "completed";
+        const subject = completed
+            ? `Task completed — ${taskTitle}`
+            : `New task assigned — ${taskTitle}`;
+        const eyebrow = completed ? "Task completed" : "New task assigned";
+        const greeting = completed
+            ? `Hi ${this.esc(assignedTo)}, a task you're assigned to has been marked completed.`
+            : `Hi ${this.esc(assignedTo)}, a task has been assigned to you.`;
+        const ctaLabel = completed ? "View task &rarr;" : "Open task &rarr;";
+        const footerNote = completed
+            ? "You're receiving this because you were assigned this now-completed task in Converge Projects."
+            : "You're receiving this because you were assigned this task in Converge Projects.";
+        const textLead = completed ? "A task you're assigned to has been completed" : "New task assigned to you";
+        const eyebrowColor = completed ? "#16a34a" : "#2563eb";
+        const relatedTo = projectName || "Other";
+
+        const prio = this.priorityColor(priority);
+        const logoSrc = `cid:${LOGO_CID}`;
+
+        const row = (label: string, valueHtml: string) => `
+          <tr>
+            <td style="padding:10px 0;border-bottom:1px solid #eef1f5;color:#64748b;font-size:13px;width:120px;vertical-align:top;">${label}</td>
+            <td style="padding:10px 0;border-bottom:1px solid #eef1f5;color:#0f172a;font-size:14px;font-weight:600;vertical-align:top;">${valueHtml}</td>
+          </tr>`;
+
+        const priorityBadge = `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${prio.bg};color:${prio.fg};font-size:12px;font-weight:700;">${this.esc(priority)}</span>`;
+
+        try {
+            await this.transporter.sendMail({
+                from: `"Converge Projects" <${process.env.SMTP_USER}>`,
+                to,
+                subject,
+
+                text: [
+                    textLead,
+                    ``,
+                    `Task:        ${taskTitle}`,
+                    `Related to:  ${relatedTo}`,
+                    `Priority:    ${priority}`,
+                    `Assigned to: ${assignedTo}`,
+                    ...(dueDate ? [`Due:         ${dueDate}`] : []),
+                    ``,
+                    ...(taskUrl ? [`Open the task: ${taskUrl}`] : []),
+                    ``,
+                    `— Converge Projects`,
+                ].join("\n"),
+
+                html: `
+      <div style="background:#f1f5f9;padding:24px 12px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="background:#ffffff;padding:18px 24px;border-bottom:1px solid #e2e8f0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="vertical-align:middle;padding-right:10px;">
+                          <img src="${logoSrc}" width="28" height="28" alt="Converge" style="display:block;width:28px;height:28px;" />
+                        </td>
+                        <td style="vertical-align:middle;color:#0f172a;font-size:17px;font-weight:700;letter-spacing:.2px;">Converge Projects</td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" style="font-size:0;line-height:0;">
+                    <span style="display:inline-block;width:16px;height:4px;border-radius:2px;background:#3b82f6;"></span>
+                    <span style="display:inline-block;width:16px;height:4px;border-radius:2px;background:#8b5cf6;margin-left:3px;"></span>
+                    <span style="display:inline-block;width:16px;height:4px;border-radius:2px;background:#f97316;margin-left:3px;"></span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 24px 8px;">
+              <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${eyebrowColor};">${eyebrow}</div>
+              <div style="margin-top:6px;font-size:20px;font-weight:700;color:#0f172a;line-height:1.3;">${this.esc(taskTitle)}</div>
+              <div style="margin-top:4px;font-size:13px;color:#64748b;">${greeting}</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 24px 4px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${row("Related to", this.esc(relatedTo))}
+                ${row("Priority", priorityBadge)}
+                ${dueDate ? row("Due", this.esc(dueDate)) : ""}
+              </table>
+            </td>
+          </tr>
+
+          ${taskUrl ? `
+          <tr>
+            <td style="padding:24px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-radius:8px;background:#2563eb;">
+                    <a href="${taskUrl}" style="display:inline-block;padding:12px 26px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">${ctaLabel}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>` : ""}
+
+          <tr>
+            <td style="padding:16px 24px;background:#f8fafc;border-top:1px solid #eef1f5;color:#94a3b8;font-size:12px;line-height:1.5;">
+              ${footerNote}
+            </td>
+          </tr>
+        </table>
+      </div>`,
+
+                attachments: [
+                    {
+                        filename: "converge-logo.png",
+                        content: Buffer.from(CONVERGE_LOGO_BASE64, "base64"),
+                        contentType: "image/png",
+                        cid: LOGO_CID,
+                    },
+                ],
+            });
+
+            this.logger.log(`Misc-task notification sent to ${to}`);
+        } catch (error) {
+            this.logger.error(`Failed to send misc-task email to ${to}`, error);
+            throw error;
+        }
+    }
+
     /** One-time passcode for the forgot-password flow. */
     async sendPasswordResetOtp(params: { to: string; name: string; otp: string; minutes: number }) {
         const { to, name, otp, minutes } = params;

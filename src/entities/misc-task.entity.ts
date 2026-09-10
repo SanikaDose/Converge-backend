@@ -57,6 +57,14 @@ export class MiscTask {
   @Column("date", { name: "due_date", nullable: true })
   dueDate: string | null;
 
+  /** Planned start / end of the work. Both nullable — a task may be logged
+   * before its dates are known. `dueDate` is kept for older rows. */
+  @Column("date", { name: "start_date", nullable: true })
+  startDate: string | null;
+
+  @Column("date", { name: "end_date", nullable: true })
+  endDate: string | null;
+
   /** Reuses ChecklistItem { id, text, done, createdAt?, updatedAt? }. */
   @Column("jsonb", { default: () => "'[]'" })
   checklist: ChecklistItem[];

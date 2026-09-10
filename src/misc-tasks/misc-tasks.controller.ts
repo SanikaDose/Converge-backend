@@ -5,6 +5,7 @@ import type { JwtPayload } from "../auth/interface/auth.interface";
 import { MiscTasksService } from "./misc-tasks.service";
 import { CreateMiscTaskDto } from "./dto/create-misc-task.dto";
 import { UpdateMiscTaskDto } from "./dto/update-misc-task.dto";
+import { UpdateMiscTaskStatusDto } from "./dto/update-misc-task-status.dto";
 import type { MiscTaskInterface } from "./interface/misc-task.interface";
 
 /**
@@ -42,6 +43,17 @@ export class MiscTasksController {
   update(@CurrentUser() user: JwtPayload, @Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateMiscTaskDto): Promise<MiscTaskInterface> {
     this.assertCanManage(user);
     return this.service.update(id, dto);
+  }
+
+  /**
+   * Status-only change. Unlike full edit, this is allowed for an admin/lead OR
+   * an employee the task is assigned to — the service enforces that. Lets the
+   * person doing the work move it To Do → In Progress → Completed without the
+   * full manage permission.
+   */
+  @Patch(apiControllerPath.miscTasks.updateStatusById)
+  updateStatus(@CurrentUser() user: JwtPayload, @Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateMiscTaskStatusDto): Promise<MiscTaskInterface> {
+    return this.service.updateStatus(id, dto.status, user);
   }
 
   @Delete(apiControllerPath.miscTasks.deleteById)

@@ -12,6 +12,8 @@ export interface MiscTaskInterface {
   priority: Priority;
   status: MiscTaskStatus;
   dueDate: string | null;
+  startDate: string | null;
+  endDate: string | null;
   checklist: ChecklistItem[];
   createdAt: string;
   /** Employee id of the creator — audit field, not rendered in the UI. */

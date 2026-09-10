@@ -11,6 +11,7 @@ import { DashboardBaseline } from "./entities/dashboard-baseline.entity";
 import { PhaseTemplate } from "./entities/phase-template.entity";
 import { TaskTemplate } from "./entities/task-template.entity";
 import { MiscTask } from "./entities/misc-task.entity";
+import { Notification } from "./entities/notification.entity";
 import { AuthModule } from "./auth/auth.module";
 import { ProjectTemplatesModule } from "./project-templates/project-templates.module";
 import { EmployeesModule } from "./employees/employees.module";
@@ -38,7 +39,7 @@ import { SeedModule } from "./seed/seed.module";
       // Hosted Postgres (Render, Railway, Neon, Supabase) requires TLS
 
       ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
-      entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, PhaseTemplate, TaskTemplate, MiscTask],
+      entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, PhaseTemplate, TaskTemplate, MiscTask, Notification],
       synchronize: process.env.DB_SYNCHRONIZE === "true",
     }),
     AuthModule,
