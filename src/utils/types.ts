@@ -16,6 +16,8 @@ export type ProjectBucket = "Delayed" | "In Progress" | "On Track";
 export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Reopened";
 /** Miscellaneous (ad-hoc) task status — deliberately distinct from TaskStatus/TicketStatus. */
 export type MiscTaskStatus = "To Do" | "In Progress" | "On Hold" | "Completed";
+/** Where an employee worked on a given day — the daily scrum "Work Mode". */
+export type WorkMode = "Office" | "Onsite" | "Both" | "WFH" | "Leave";
 /**
  * Directory role. Replaced the earlier "Team Lead" | "Developer" pair: the
  * directory now distinguishes only who administers the app from everyone

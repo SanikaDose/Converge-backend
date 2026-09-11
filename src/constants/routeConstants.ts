@@ -77,4 +77,10 @@ export const apiControllerPath = {
     getList: '',
     markRead: 'mark-read',
   },
+
+  scrum: {
+    root: 'scrum',
+    getByDate: '',
+    save: '',
+  },
 } as const;
