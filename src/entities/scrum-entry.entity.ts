@@ -1,5 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn } from "typeorm";
-import type { WorkMode } from "../utils/types";
+import type { ScrumReference, WorkMode } from "../utils/types";
 
 /**
  * One employee's daily scrum update for one day. The page is a per-day grid of
@@ -29,6 +29,13 @@ export class ScrumEntry {
 
   @Column("varchar", { name: "work_mode", default: "Office" })
   workMode: WorkMode;
+
+  /**
+   * Generic references to the projects / tasks / tickets worked on — picked
+   * from the whole directory, not just what's assigned to this employee.
+   */
+  @Column("jsonb", { default: () => "'[]'" })
+  references: ScrumReference[];
 
   @Column("timestamptz", { name: "updated_at" })
   updatedAt: string;

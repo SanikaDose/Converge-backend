@@ -60,6 +60,9 @@ export const apiControllerPath = {
   employees: {
     root: 'employees',
     getList: '',
+    create: '',
+    updateById: ':id',
+    deleteById: ':id',
   },
 
   teamPerformance: {

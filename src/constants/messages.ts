@@ -14,6 +14,7 @@ export const ticketMessages = {
   notFound: 'Ticket not found.',
   projectNotFound: 'Project not found.',
   closedFinal: 'A closed ticket cannot be reopened.',
+  reopenedFinal: 'A reopened ticket can only be closed.',
 };
 
 export const templateMessages = {

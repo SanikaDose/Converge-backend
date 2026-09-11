@@ -1,7 +1,18 @@
 import { Type } from "class-transformer";
 import { ArrayNotEmpty, IsArray, IsIn, IsISO8601, IsOptional, IsString, ValidateNested } from "class-validator";
 import { WORK_MODES } from "../../constants/enums";
-import type { WorkMode } from "../../utils/types";
+import type { ScrumReferenceType, WorkMode } from "../../utils/types";
+
+class ScrumReferenceInput {
+  @IsIn(["project", "task", "ticket", "na", "other"])
+  type: ScrumReferenceType;
+
+  @IsString()
+  id: string;
+
+  @IsString()
+  label: string;
+}
 
 class ScrumEntryInput {
   @IsString()
@@ -13,6 +24,12 @@ class ScrumEntryInput {
 
   @IsIn(WORK_MODES)
   workMode: WorkMode;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ScrumReferenceInput)
+  @IsOptional()
+  references?: ScrumReferenceInput[];
 }
 
 /**

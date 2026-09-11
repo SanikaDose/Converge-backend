@@ -19,6 +19,18 @@ export type MiscTaskStatus = "To Do" | "In Progress" | "On Hold" | "Completed";
 /** Where an employee worked on a given day — the daily scrum "Work Mode". */
 export type WorkMode = "Office" | "Onsite" | "Both" | "WFH" | "Leave";
 /**
+ * A generic reference to something worked on in a scrum update. Deliberately
+ * NOT scoped to what's assigned to the person — a `label` snapshot is stored so
+ * the reference reads correctly even if the underlying row is later renamed or
+ * deleted.
+ */
+export type ScrumReferenceType = "project" | "task" | "ticket" | "na" | "other";
+export interface ScrumReference {
+  type: ScrumReferenceType;
+  id: string;
+  label: string;
+}
+/**
  * Directory role. Replaced the earlier "Team Lead" | "Developer" pair: the
  * directory now distinguishes only who administers the app from everyone
  * else, so the two roles line up 1:1 with AppRole below.
@@ -26,6 +38,8 @@ export type WorkMode = "Office" | "Onsite" | "Both" | "WFH" | "Leave";
 export type OrgRole = "Admin" | "User" | "Lead";
 /** Application access role — distinct from OrgRole (the directory job title). */
 export type AppRole = "Admin" | "User" | "Lead";
+/** Directory lifecycle — an employee who left is "inactive", not deleted. */
+export type EmployeeStatus = "active" | "inactive";
 
 /** 0 = Sunday … 6 = Saturday, matching JS Date#getUTCDay(). */
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;

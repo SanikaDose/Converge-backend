@@ -1,4 +1,4 @@
-import type { WorkMode } from "../../utils/types";
+import type { ScrumReference, WorkMode } from "../../utils/types";
 
 /** Wire shape — GET /scrum and PUT /scrum both return this. */
 export interface ScrumEntryInterface {
@@ -7,5 +7,6 @@ export interface ScrumEntryInterface {
   date: string;
   workPerformed: string;
   workMode: WorkMode;
+  references: ScrumReference[];
   updatedAt: string;
 }

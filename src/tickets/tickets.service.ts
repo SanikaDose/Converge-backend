@@ -101,6 +101,13 @@ export class TicketsService {
     if (ticket.status === "Closed" && dto.status && dto.status !== "Closed" && dto.status !== "Reopened") {
       throw new ConflictException(ticketMessages.closedFinal);
     }
+    // A reopened ticket can only be closed again — not sent back to Open/In
+    // Progress/Resolved. Mirrors the closed-ticket rule above so the API can't
+    // be used to route around the UI, which only offers "Closed" for a reopened
+    // ticket.
+    if (ticket.status === "Reopened" && dto.status && dto.status !== "Reopened" && dto.status !== "Closed") {
+      throw new ConflictException(ticketMessages.reopenedFinal);
+    }
     const wasClosed = ticket.status === "Closed";
     Object.assign(ticket, dto);
     // Keep the primary assignee mirror in step when assignees is edited.

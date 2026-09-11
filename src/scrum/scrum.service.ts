@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ScrumEntry } from "../entities/scrum-entry.entity";
 import { newId } from "../utils/template";
+import { todayISO } from "../utils/date-utils";
 import type { SaveScrumDto } from "./dto/save-scrum.dto";
 import type { ScrumEntryInterface } from "./interface/scrum.interface";
 
@@ -23,21 +24,36 @@ export class ScrumService {
    * no text and the default "Office" mode — are treated as "not filled in" and
    * skipped, so the page's "X/Y updated" count stays honest.
    */
-  async save(dto: SaveScrumDto): Promise<ScrumEntryInterface[]> {
+  async save(dto: SaveScrumDto, user: { sub: string; appRole: string }): Promise<ScrumEntryInterface[]> {
+    // Only the current day is editable — no back-dating a previous standup.
+    // (The team is IST, ahead of UTC, so local "today" is never before UTC
+    //  today; this reliably blocks earlier dates without a false positive.)
+    if (dto.date < todayISO()) {
+      throw new ForbiddenException("Previous days can't be edited.");
+    }
+
+    // Admins/leads may edit anyone's row; everyone else only their own.
+    const isManager = user.appRole === "Admin" || user.appRole === "Lead";
+    if (!isManager && dto.entries.some((e) => e.employeeId !== user.sub)) {
+      throw new ForbiddenException("You can only edit your own scrum update.");
+    }
+
     const now = new Date().toISOString();
     const existing = await this.repo.find({ where: { date: dto.date } });
     const byEmployee = new Map(existing.map(e => [e.employeeId, e]));
 
     for (const input of dto.entries) {
       const workPerformed = (input.workPerformed ?? "").trim();
+      const references = input.references ?? [];
       const row = byEmployee.get(input.employeeId);
 
       // Nothing meaningful entered and nothing stored yet — skip it.
-      if (!row && !workPerformed && input.workMode === "Office") continue;
+      if (!row && !workPerformed && input.workMode === "Office" && references.length === 0) continue;
 
       if (row) {
         row.workPerformed = workPerformed;
         row.workMode = input.workMode;
+        row.references = references;
         row.updatedAt = now;
         await this.repo.save(row);
       } else {
@@ -47,6 +63,7 @@ export class ScrumService {
           date: dto.date,
           workPerformed,
           workMode: input.workMode,
+          references,
           updatedAt: now,
         }));
       }
