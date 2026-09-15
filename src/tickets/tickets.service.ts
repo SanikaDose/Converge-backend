@@ -79,14 +79,15 @@ export class TicketsService {
 
     const savedTicket = await this.ticketRepo.save(ticket);
 
-    // One call for the whole ticket: personal channels fan out per assignee,
-    // the shared team-space message is sent once (see NotificationsService).
+    // Fire-and-forget: the ticket is already persisted, so we don't make the
+    // caller wait on email/WhatsApp/Chat (each a slow network round-trip). The
+    // dispatch already isolates every channel in its own try/catch; the outer
+    // .catch here only guards against an unhandled rejection. Notifications are
+    // best-effort (as before) — nothing about the ticket depends on them.
     if (assignees.length) {
-      try {
-        await this.notificationsService.notifyTicketAssigned(savedTicket, assignees);
-      } catch (error) {
-        console.error(`Failed to send ticket notifications for ticket ${savedTicket.id}`, error);
-      }
+      void this.notificationsService
+        .notifyTicketAssigned(savedTicket, assignees)
+        .catch(error => console.error(`Failed to send ticket notifications for ticket ${savedTicket.id}`, error));
     }
 
     return savedTicket;
@@ -127,14 +128,13 @@ export class TicketsService {
 
     // On the transition *into* Closed, notify the related users (email) + the
     // team space (Google Chat). Only on the edge, so re-saving a closed ticket
-    // doesn't spam. Failures are swallowed so they never fail the update.
+    // doesn't spam. Fire-and-forget: the ticket is already saved, so the caller
+    // doesn't wait on the (slow) sends — best-effort, same as before.
     if (!wasClosed && saved.status === "Closed") {
-      try {
+      void (async () => {
         const assignees = await this.loadAssignees(saved.assignees);
         await this.notificationsService.notifyTicketClosed(saved, assignees);
-      } catch (error) {
-        console.error(`Failed to send close notifications for ticket ${saved.id}`, error);
-      }
+      })().catch(error => console.error(`Failed to send close notifications for ticket ${saved.id}`, error));
     }
 
     return saved;

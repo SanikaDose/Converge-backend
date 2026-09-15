@@ -72,23 +72,29 @@ export class MiscTasksService {
       this.logger.error(`Bell notification failed for misc task ${task.id}`, error instanceof Error ? error.stack : String(error));
     }
 
-    // Email — per assignee who has an address.
-    for (const emp of employees) {
-      if (!emp.email) continue;
-      try {
-        await this.emailService.sendMiscTaskEmail({
-          to: emp.email,
-          taskTitle: task.title,
-          projectName: task.projectName,
-          priority: task.priority,
-          assignedTo: emp.name,
-          dueDate: task.endDate ?? task.dueDate,
-          taskUrl,
-          variant,
-        });
-      } catch (error) {
-        this.logger.error(`Email notification failed for ${emp.email}`, error instanceof Error ? error.stack : String(error));
-      }
+    // Email — per assignee who has an address. Fire-and-forget: emails are slow
+    // SMTP round-trips, and the task (and the bell write above) are already
+    // saved, so we don't block the caller on them. Best-effort, as before.
+    const recipients = employees.filter(e => e.email);
+    if (recipients.length) {
+      void (async () => {
+        for (const emp of recipients) {
+          try {
+            await this.emailService.sendMiscTaskEmail({
+              to: emp.email as string,
+              taskTitle: task.title,
+              projectName: task.projectName,
+              priority: task.priority,
+              assignedTo: emp.name,
+              dueDate: task.endDate ?? task.dueDate,
+              taskUrl,
+              variant,
+            });
+          } catch (error) {
+            this.logger.error(`Email notification failed for ${emp.email}`, error instanceof Error ? error.stack : String(error));
+          }
+        }
+      })();
     }
   }
 
