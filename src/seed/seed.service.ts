@@ -346,7 +346,7 @@ export class SeedService implements OnModuleInit {
         id: newId(), seq: 3, title: "Kickoff meeting recording missing slide 4",
         description: "Recording cuts out during the scope walkthrough — re-share the deck separately.",
         projectId: projectAId, projectName: projectA!.name, phase: "01 · Project Initialization",
-        assignedTo: null, priority: "Low", status: "Resolved", createdAt: today,
+        assignedTo: null, priority: "Low", status: "Closed", createdAt: today,
         resolvedAt: today,
       }),
       this.ticketRepo.create({

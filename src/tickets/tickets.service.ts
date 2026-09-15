@@ -120,7 +120,7 @@ export class TicketsService {
     // The closing date is owned here, not sent by the client, so it can't be
     // backdated or skipped. Resolved→Closed keeps the original stamp: that's
     // the date the work actually finished, and Closed is just bookkeeping.
-    const isDone = ticket.status === "Resolved" || ticket.status === "Closed";
+    const isDone = ticket.status === "Closed";
     if (isDone && !ticket.resolvedAt) ticket.resolvedAt = todayISO();
     if (!isDone) ticket.resolvedAt = null;
 

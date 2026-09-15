@@ -13,7 +13,7 @@ export type StatusColorKey = "green" | "amber" | "red" | "slate" | "violet" | "o
 export type Priority = "Low" | "Medium" | "High" | "Critical";
 export type ProjectType = "Product" | "Solution";
 export type ProjectBucket = "Delayed" | "In Progress" | "On Track";
-export type TicketStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Reopened";
+export type TicketStatus = "Open" | "In Progress" | "Closed" | "Reopened";
 /** Miscellaneous (ad-hoc) task status — deliberately distinct from TaskStatus/TicketStatus. */
 export type MiscTaskStatus = "To Do" | "In Progress" | "On Hold" | "Completed";
 /** Where an employee worked on a given day — the daily scrum "Work Mode". */

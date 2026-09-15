@@ -25,7 +25,7 @@ export const FINANCIAL_YEARS: string[] = ['FY26-27', 'FY25-26', 'FY24-25'];
 
 export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Critical'];
 
-export const TICKET_STATUSES: TicketStatus[] = ['Open', 'In Progress', 'Resolved', 'Closed', 'Reopened'];
+export const TICKET_STATUSES: TicketStatus[] = ['Open', 'In Progress', 'Closed', 'Reopened'];
 
 export const MISC_TASK_STATUSES: MiscTaskStatus[] = ['To Do', 'In Progress', 'On Hold', 'Completed'];
 
