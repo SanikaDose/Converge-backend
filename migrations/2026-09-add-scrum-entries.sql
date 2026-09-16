@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS scrum_entries (
   id             uuid PRIMARY KEY,
   employee_id    varchar NOT NULL,
   date           date    NOT NULL,
-  work_performed text    NOT NULL DEFAULT '',
+  -- Quoted camelCase: the entity's `workPerformed` property has no name
+  -- override, so TypeORM expects the column named exactly "workPerformed".
+  "workPerformed" text    NOT NULL DEFAULT '',
   work_mode      varchar NOT NULL DEFAULT 'Office',
   updated_at     timestamptz NOT NULL
 );
