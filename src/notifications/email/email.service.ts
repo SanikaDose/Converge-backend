@@ -19,16 +19,20 @@ export class EmailService {
         },
     });
 
-    async onModuleInit() {
-        try {
-            await this.transporter.verify();
-            this.logger.log("SMTP connection successful");
-        } catch (error) {
-            this.logger.error(
-                "SMTP connection failed",
-                error instanceof Error ? error.stack : String(error),
+    onModuleInit() {
+        // Fire-and-forget: verifying SMTP must not block app startup. Awaiting it
+        // meant a slow/unreachable SMTP host held up app.listen() until the
+        // connection timed out (~2 min), which on Render shows as "No open ports
+        // detected". The connection is proven lazily on the first sendMail anyway.
+        void this.transporter
+            .verify()
+            .then(() => this.logger.log("SMTP connection successful"))
+            .catch((error) =>
+                this.logger.error(
+                    "SMTP connection failed",
+                    error instanceof Error ? error.stack : String(error),
+                ),
             );
-        }
     }
 
     /** Escape user-supplied text before it lands in HTML — issue titles and

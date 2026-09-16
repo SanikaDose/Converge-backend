@@ -1,10 +1,16 @@
 import "reflect-metadata";
+import * as dns from "node:dns";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AppModule } from "./app.module";
 import { Config } from "./config/config";
 import { apiControllerPath } from "./constants/routeConstants";
+
+// Prefer IPv4 for all outbound DNS. Some hosts (e.g. Render) have no routable
+// IPv6, so resolving smtp.gmail.com to a AAAA record first makes the SMTP
+// connection fail with ENETUNREACH. Asking for A records first fixes it.
+dns.setDefaultResultOrder("ipv4first");
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
