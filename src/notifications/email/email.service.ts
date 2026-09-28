@@ -1,38 +1,160 @@
 import { Injectable, Logger } from "@nestjs/common";
-import * as nodemailer from "nodemailer";
-import { CONVERGE_LOGO_BASE64 } from "./converge-logo";
 
-/** Content-ID for the inline logo attachment, referenced as src="cid:...". */
-const LOGO_CID = "converge-logo";
+/**
+ * Transactional email via the Gmail API over HTTPS.
+ *
+ * We send through Google (as the account itself) rather than opening an SMTP
+ * socket: Render blocks outbound SMTP (verified — even over IPv4 the connection
+ * times out), so nodemailer→Gmail can't work there. The Gmail REST API is plain
+ * HTTPS (port 443, never blocked), and because Google actually sends the mail
+ * it's DKIM-signed by gmail.com — so it reaches the inbox with no DNS setup.
+ *
+ * Config (env):
+ *   GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET — OAuth client (Google Cloud console).
+ *   GMAIL_REFRESH_TOKEN                   — long-lived token for the sender account,
+ *                                           authorized for the gmail.send scope.
+ *   GMAIL_SENDER                          — sending address (falls back to SMTP_USER).
+ *   RENDER_EXTERNAL_URL                   — set by Render; used to build the logo URL.
+ */
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 
 @Injectable()
 export class EmailService {
     private readonly logger = new Logger(EmailService.name);
 
-    private readonly transporter = nodemailer.createTransport({
-        // host: process.env.SMTP_HOST,
-        // port: Number(process.env.SMTP_PORT),
-        service: "gmail",
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASSWORD,
-        },
-    });
+    private readonly senderName = "Converge Projects";
+    private readonly senderEmail = process.env.GMAIL_SENDER || process.env.SMTP_USER || "";
+
+    /** Cached OAuth access token, refreshed shortly before it expires. */
+    private accessToken: string | null = null;
+    private accessTokenExpiry = 0;
 
     onModuleInit() {
-        // Fire-and-forget: verifying SMTP must not block app startup. Awaiting it
-        // meant a slow/unreachable SMTP host held up app.listen() until the
-        // connection timed out (~2 min), which on Render shows as "No open ports
-        // detected". The connection is proven lazily on the first sendMail anyway.
-        void this.transporter
-            .verify()
-            .then(() => this.logger.log("SMTP connection successful"))
-            .catch((error) =>
-                this.logger.error(
-                    "SMTP connection failed",
-                    error instanceof Error ? error.stack : String(error),
-                ),
+        const configured =
+            process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN;
+        if (!configured) {
+            this.logger.warn(
+                "Gmail API not configured (GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN) — outbound email is disabled.",
             );
+            return;
+        }
+        if (!this.senderEmail) {
+            this.logger.warn("No sender address (GMAIL_SENDER / SMTP_USER) — outbound email is disabled.");
+            return;
+        }
+        this.logger.log(`Email transport ready (Gmail API), sender ${this.senderEmail}`);
+    }
+
+    /**
+     * Absolute URL to the public logo the backend serves. The Gmail API path
+     * references the logo by URL (rather than a CID inline attachment) to keep the
+     * MIME simple. Empty when no public base URL is known (e.g. local dev) — the
+     * templates then omit the image rather than render a broken one.
+     */
+    private logoUrl(): string {
+        const base = (process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_BACKEND_URL || "").replace(/\/+$/, "");
+        return base ? `${base}/api/v1/branding/logo.png` : "";
+    }
+
+    /** `<img>` for the brand logo, or "" when no public URL is available. */
+    private logoImg(): string {
+        const url = this.logoUrl();
+        return url
+            ? `<img src="${url}" width="28" height="28" alt="Converge" style="display:block;width:28px;height:28px;" />`
+            : "";
+    }
+
+    /** A valid OAuth access token, refreshed via the refresh token when needed. */
+    private async getAccessToken(): Promise<string> {
+        const now = Date.now();
+        if (this.accessToken && now < this.accessTokenExpiry - 60_000) return this.accessToken;
+
+        const clientId = process.env.GMAIL_CLIENT_ID;
+        const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+        const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+        if (!clientId || !clientSecret || !refreshToken) {
+            throw new Error("Gmail OAuth is not configured (client id / secret / refresh token)");
+        }
+
+        const res = await fetch(GOOGLE_TOKEN_URL, {
+            method: "POST",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                refresh_token: refreshToken,
+                grant_type: "refresh_token",
+            }).toString(),
+        });
+        if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            throw new Error(`Google token endpoint responded ${res.status}: ${body}`);
+        }
+        const json = (await res.json()) as { access_token: string; expires_in: number };
+        this.accessToken = json.access_token;
+        this.accessTokenExpiry = now + json.expires_in * 1000;
+        return this.accessToken;
+    }
+
+    /** RFC 2047 encode a header value so a non-ASCII subject survives transit. */
+    private encodeHeader(value: string): string {
+        return /^[\x00-\x7F]*$/.test(value)
+            ? value
+            : `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+    }
+
+    /** Base64 body content, wrapped at 76 chars as MIME expects. */
+    private base64Body(text: string): string {
+        return Buffer.from(text, "utf8").toString("base64").replace(/(.{76})/g, "$1\r\n");
+    }
+
+    /** Build a MIME message and send it through the Gmail API. Throws on failure. */
+    private async send(params: { to: string; subject: string; html: string; text: string }): Promise<void> {
+        if (!this.senderEmail) throw new Error("No sender address (GMAIL_SENDER / SMTP_USER) is configured");
+        const accessToken = await this.getAccessToken();
+
+        const boundary = `converge_${Math.random().toString(36).slice(2)}`;
+        const mime = [
+            `From: ${this.senderName} <${this.senderEmail}>`,
+            `To: ${params.to}`,
+            `Subject: ${this.encodeHeader(params.subject)}`,
+            `MIME-Version: 1.0`,
+            `Content-Type: multipart/alternative; boundary="${boundary}"`,
+            ``,
+            `--${boundary}`,
+            `Content-Type: text/plain; charset="UTF-8"`,
+            `Content-Transfer-Encoding: base64`,
+            ``,
+            this.base64Body(params.text),
+            `--${boundary}`,
+            `Content-Type: text/html; charset="UTF-8"`,
+            `Content-Transfer-Encoding: base64`,
+            ``,
+            this.base64Body(params.html),
+            `--${boundary}--`,
+            ``,
+        ].join("\r\n");
+
+        // Gmail wants the raw RFC 2822 message base64url-encoded.
+        const raw = Buffer.from(mime, "utf8")
+            .toString("base64")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+
+        const res = await fetch(GMAIL_SEND_URL, {
+            method: "POST",
+            headers: {
+                authorization: `Bearer ${accessToken}`,
+                "content-type": "application/json",
+            },
+            body: JSON.stringify({ raw }),
+        });
+        if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            throw new Error(`Gmail API responded ${res.status} ${res.statusText}: ${body}`);
+        }
     }
 
     /** Escape user-supplied text before it lands in HTML — issue titles and
@@ -97,9 +219,6 @@ export class EmailService {
         const eyebrowColor = closed ? "#16a34a" : "#2563eb";
 
         const prio = this.priorityColor(priority);
-        // Logo is attached inline (CID) rather than linked, so it renders in the
-        // receiver's client without depending on remote hosting or "show images".
-        const logoSrc = `cid:${LOGO_CID}`;
 
         // One details row — table-based so it renders consistently in Gmail/Outlook.
         const row = (label: string, valueHtml: string) => `
@@ -111,8 +230,7 @@ export class EmailService {
         const priorityBadge = `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${prio.bg};color:${prio.fg};font-size:12px;font-weight:700;">${this.esc(priority)}</span>`;
 
         try {
-            await this.transporter.sendMail({
-                from: `"Converge Projects" <${process.env.SMTP_USER}>`,
+            await this.send({
                 to,
                 subject,
 
@@ -143,7 +261,7 @@ export class EmailService {
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="vertical-align:middle;padding-right:10px;">
-                          <img src="${logoSrc}" width="28" height="28" alt="Converge" style="display:block;width:28px;height:28px;" />
+                          ${this.logoImg()}
                         </td>
                         <td style="vertical-align:middle;color:#0f172a;font-size:17px;font-weight:700;letter-spacing:.2px;">Converge Projects</td>
                       </tr>
@@ -202,26 +320,14 @@ export class EmailService {
           </tr>
         </table>
       </div>`,
-
-                attachments: [
-                    {
-                        filename: "converge-logo.png",
-                        content: Buffer.from(CONVERGE_LOGO_BASE64, "base64"),
-                        contentType: "image/png",
-                        cid: LOGO_CID,
-                    },
-                ],
             });
 
-            this.logger.log(
-                `Ticket notification sent to ${to}`,
-            );
+            this.logger.log(`Ticket notification sent to ${to}`);
         } catch (error) {
             this.logger.error(
                 `Failed to send ticket email to ${to}`,
-                error,
+                error instanceof Error ? error.stack : String(error),
             );
-
             throw error;
         }
     }
@@ -269,7 +375,6 @@ export class EmailService {
         const relatedTo = projectName || "Other";
 
         const prio = this.priorityColor(priority);
-        const logoSrc = `cid:${LOGO_CID}`;
 
         const row = (label: string, valueHtml: string) => `
           <tr>
@@ -280,8 +385,7 @@ export class EmailService {
         const priorityBadge = `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${prio.bg};color:${prio.fg};font-size:12px;font-weight:700;">${this.esc(priority)}</span>`;
 
         try {
-            await this.transporter.sendMail({
-                from: `"Converge Projects" <${process.env.SMTP_USER}>`,
+            await this.send({
                 to,
                 subject,
 
@@ -310,7 +414,7 @@ export class EmailService {
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="vertical-align:middle;padding-right:10px;">
-                          <img src="${logoSrc}" width="28" height="28" alt="Converge" style="display:block;width:28px;height:28px;" />
+                          ${this.logoImg()}
                         </td>
                         <td style="vertical-align:middle;color:#0f172a;font-size:17px;font-weight:700;letter-spacing:.2px;">Converge Projects</td>
                       </tr>
@@ -364,20 +468,14 @@ export class EmailService {
           </tr>
         </table>
       </div>`,
-
-                attachments: [
-                    {
-                        filename: "converge-logo.png",
-                        content: Buffer.from(CONVERGE_LOGO_BASE64, "base64"),
-                        contentType: "image/png",
-                        cid: LOGO_CID,
-                    },
-                ],
             });
 
             this.logger.log(`Misc-task notification sent to ${to}`);
         } catch (error) {
-            this.logger.error(`Failed to send misc-task email to ${to}`, error);
+            this.logger.error(
+                `Failed to send misc-task email to ${to}`,
+                error instanceof Error ? error.stack : String(error),
+            );
             throw error;
         }
     }
@@ -386,8 +484,7 @@ export class EmailService {
     async sendPasswordResetOtp(params: { to: string; name: string; otp: string; minutes: number }) {
         const { to, name, otp, minutes } = params;
         try {
-            await this.transporter.sendMail({
-                from: `"Converge Projects" <${process.env.SMTP_USER}>`,
+            await this.send({
                 to,
                 subject: `Your Converge password reset code: ${otp}`,
                 text: [
@@ -406,7 +503,7 @@ export class EmailService {
           <tr>
             <td style="background:#ffffff;padding:18px 24px;border-bottom:1px solid #e2e8f0;">
               <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-                <td style="vertical-align:middle;padding-right:10px;"><img src="cid:${LOGO_CID}" width="28" height="28" alt="Converge" style="display:block;width:28px;height:28px;" /></td>
+                <td style="vertical-align:middle;padding-right:10px;">${this.logoImg()}</td>
                 <td style="vertical-align:middle;color:#0f172a;font-size:17px;font-weight:700;">Converge Projects</td>
               </tr></table>
             </td>
@@ -430,9 +527,6 @@ export class EmailService {
           </tr>
         </table>
       </div>`,
-                attachments: [
-                    { filename: "converge-logo.png", content: Buffer.from(CONVERGE_LOGO_BASE64, "base64"), contentType: "image/png", cid: LOGO_CID },
-                ],
             });
             this.logger.log(`Password reset OTP sent to ${to}`);
         } catch (error) {

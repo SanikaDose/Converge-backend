@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
-import type { ProjectType, WeekDay, Warranty, RelatedRepository } from "../utils/types";
+import type { ProjectType, WeekDay, Warranty, RelatedRepository, ProjectCharter } from "../utils/types";
 import { Employee } from "./employee.entity";
 import { Phase } from "./phase.entity";
 import { Task } from "./task.entity";
@@ -63,6 +63,11 @@ export class Project {
 
   @Column("jsonb", { name: "related_repositories", default: () => "'[]'" })
   relatedRepositories: RelatedRepository[];
+
+  /** Standard Project Charter (sections 02–08). Captured at creation for
+   * Solution projects; null for Products and pre-feature rows. */
+  @Column("jsonb", { nullable: true })
+  charter: ProjectCharter | null;
 
   @Column("int", { array: true, name: "week_off" })
   weekOff: WeekDay[];

@@ -80,7 +80,7 @@ export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: Wee
   // with the phases[pi] built from it.
   templateForDisciplines(template, disciplines).forEach((p, pi) => {
     const phase = phases[pi];
-    p.tasks.forEach(([name, offset, duration, description], ti) => {
+    p.tasks.forEach(([name, offset, duration, description, criticalPoints], ti) => {
       const { plannedStart, plannedFinish } = computePlanned(startDate, offset, duration, weekOff);
       tasks.push({
         id: newId(),
@@ -102,6 +102,10 @@ export function buildTasks(startDate: string, phases: PlainPhase[], weekOff: Wee
         history: [],
         achievement: null,
         pendingChange: null,
+        // Template critical points seed the task's checklist (all unchecked).
+        checklist: (criticalPoints ?? []).map(text => ({
+          id: newId(), text, done: false, createdAt: new Date().toISOString(),
+        })),
       });
     });
   });

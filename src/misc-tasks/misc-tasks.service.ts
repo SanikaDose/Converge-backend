@@ -141,6 +141,7 @@ export class MiscTasksService {
       dueDate: dto.dueDate || null,
       startDate: dto.startDate || null,
       endDate: dto.endDate || null,
+      estimatedHours: dto.estimatedHours ?? null,
       checklist: (dto.checklist as ChecklistItem[]) || [],
       createdAt: todayISO(),
       // Creator taken from the verified token, never the request body.
@@ -172,6 +173,7 @@ export class MiscTasksService {
     if (dto.dueDate !== undefined) task.dueDate = dto.dueDate || null;
     if (dto.startDate !== undefined) task.startDate = dto.startDate || null;
     if (dto.endDate !== undefined) task.endDate = dto.endDate || null;
+    if (dto.estimatedHours !== undefined) task.estimatedHours = dto.estimatedHours ?? null;
     if (dto.checklist !== undefined) task.checklist = dto.checklist as ChecklistItem[];
 
     // "Related to" can be changed, including back to "Other" (projectId null).

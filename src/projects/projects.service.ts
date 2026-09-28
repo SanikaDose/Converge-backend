@@ -58,6 +58,7 @@ function toMeta(project: Project) {
     createdAt: project.createdAt, updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
     financialYear: project.financialYear, warranty: project.warranty ?? null, weekOff: project.weekOff,
     relatedRepositories: project.relatedRepositories ?? [],
+    charter: project.charter ?? null,
   };
 }
 
@@ -144,7 +145,7 @@ export class ProjectsService {
     // discipline — e.g. [Software] leaves out the Vision and Automation phases.
     // The business-day scheduling (computePlanned, inside buildTasks) is
     // unchanged; only the source of the definitions moved to the database.
-    const template = await this.templates.getForBuild();
+    const template = await this.templates.getForBuild(dto.templateId);
     const plainPhases = buildProjectPhases(template, disciplines);
     const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff, template, disciplines);
 
@@ -166,6 +167,8 @@ export class ProjectsService {
         financialYear: dto.financialYear || null,
         weekOff,
         relatedRepositories: dto.relatedRepositories ?? [],
+        // Charter is captured for Solution projects; Products send none.
+        charter: dto.charter ?? null,
       });
       await manager.save(project);
       await manager.save(plainPhases.map(p => manager.create(Phase, { ...p, projectId: id })));

@@ -95,7 +95,52 @@ export interface Warranty {
   email: string;
 }
 
-export type TemplateTaskTuple = [name: string, dayOffset: number, duration: number, description?: string];
+/* ---------------------------------------------------------------------
+   PROJECT CHARTER — the Converge "Standard Charter" captured at project
+   creation (Solution projects only; Products skip it). One jsonb blob on
+   the project. Sections mirror the Standard Charter Structure (02–08);
+   section 01 "Project Information" is the base project form itself.
+------------------------------------------------------------------------ */
+/** 06. Key Technical Commitments — one table row. */
+export interface CharterTechnicalCommitment {
+  parameter: string;
+  commitment: string;
+  reference: string;
+  remarks: string;
+}
+/** 07. Major Milestones — one high-level phase/milestone. */
+export interface CharterMilestone {
+  name: string;
+  targetDate: string | null;
+}
+export interface ProjectCharter {
+  // 02. Sales / Pre-Sales Information
+  proposalNo: string;
+  proposalRevision: string;
+  proposalDate: string | null;
+  poNo: string;
+  poDate: string | null;
+  salesOwner: string;
+  proposalDocument: string;
+  poDocument: string;
+  // 03. Project Objective
+  objective: string;
+  // 04. Solution Offered
+  solutionOffered: string;
+  // 05. Project Conditions
+  scope: string[];
+  outOfScope: string[];
+  assumptions: string[];
+  constraints: string[];
+  // 06. Key Technical Commitments
+  technicalCommitments: CharterTechnicalCommitment[];
+  // 07. Major Milestones – Project Phases
+  milestones: CharterMilestone[];
+  // 08. Success Criteria
+  successCriteria: string[];
+}
+
+export type TemplateTaskTuple = [name: string, dayOffset: number, duration: number, description?: string, criticalPoints?: string[]];
 
 /** A discipline-specific phase belongs to exactly one team's workstream. */
 export type PhaseDiscipline = "Software" | "Vision" | "Automation";

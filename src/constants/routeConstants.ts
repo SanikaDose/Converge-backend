@@ -50,11 +50,22 @@ export const apiControllerPath = {
 
   projectTemplates: {
     root: 'project-templates',
-    get: '',
+    // Template groups (the named templates themselves).
+    list: '',
+    create: '',
+    // Phase/task mutations — declared before the ':templateId' param routes so
+    // literal 'phases'/'tasks' segments match first.
+    addPhase: ':templateId/phases',
+    updatePhase: 'phases/:phaseId',
+    deletePhase: 'phases/:phaseId',
     addTask: 'phases/:phaseId/tasks',
     reorderTasks: 'phases/:phaseId/tasks/reorder',
     updateTask: 'tasks/:taskId',
     deleteTask: 'tasks/:taskId',
+    // A single template's phases + rename/delete of the template.
+    getOne: ':templateId',
+    updateTemplate: ':templateId',
+    deleteTemplate: ':templateId',
   },
 
   employees: {

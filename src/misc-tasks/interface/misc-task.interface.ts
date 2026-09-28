@@ -14,6 +14,7 @@ export interface MiscTaskInterface {
   dueDate: string | null;
   startDate: string | null;
   endDate: string | null;
+  estimatedHours: number | null;
   checklist: ChecklistItem[];
   createdAt: string;
   /** Employee id of the creator — audit field, not rendered in the UI. */

@@ -33,6 +33,12 @@ export class TaskTemplate {
   @Column("int")
   duration: number;
 
+  /** Default "critical points" copied onto the task's checklist when a project
+   * is generated. Plain text lines here; each becomes a ChecklistItem (unchecked)
+   * on the created task. jsonb array of strings, defaults to empty. */
+  @Column("jsonb", { name: "critical_points", default: () => "'[]'" })
+  criticalPoints: string[];
+
   @Column("int")
   order: number;
 }

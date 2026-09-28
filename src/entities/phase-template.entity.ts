@@ -1,6 +1,7 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
 import type { PhaseDiscipline } from "../utils/types";
 import { TaskTemplate } from "./task-template.entity";
+import { ProjectTemplate } from "./project-template.entity";
 
 /**
  * The master list of phases a new project is built from — data, not
@@ -13,6 +14,17 @@ import { TaskTemplate } from "./task-template.entity";
 export class PhaseTemplate {
   @PrimaryColumn("uuid")
   id: string;
+
+  /** The template this phase belongs to. Nullable only so the column can be
+   * added to existing rows; the service backfills every phase onto the default
+   * template on boot, so it's effectively always set. */
+  @Column("uuid", { name: "template_id", nullable: true })
+  @Index()
+  templateId: string | null;
+
+  @ManyToOne(() => ProjectTemplate, (t) => t.phases, { nullable: true, onDelete: "CASCADE" })
+  @JoinColumn({ name: "template_id" })
+  template: ProjectTemplate | null;
 
   @Column("varchar")
   name: string;

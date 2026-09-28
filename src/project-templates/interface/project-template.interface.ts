@@ -6,6 +6,7 @@ export interface TaskTemplateResponse {
   description: string;
   dayOffset: number;
   duration: number;
+  criticalPoints: string[];
   order: number;
 }
 
@@ -16,4 +17,15 @@ export interface PhaseTemplateResponse {
   critical: boolean;
   discipline: PhaseDiscipline | null;
   tasks: TaskTemplateResponse[];
+}
+
+/** One row of GET /project-templates — the list of named templates. */
+export interface ProjectTemplateSummary {
+  id: string;
+  name: string;
+  description: string;
+  isDefault: boolean;
+  order: number;
+  phaseCount: number;
+  taskCount: number;
 }

@@ -20,8 +20,12 @@ export const ticketMessages = {
 export const templateMessages = {
   phaseNotFound: 'Phase template not found.',
   taskNotFound: 'Task template not found.',
+  templateNotFound: 'Project template not found.',
   adminOnly: 'Only an administrator can edit the project template.',
   reorderMismatch: 'The reorder list must contain exactly this phase\'s tasks.',
+  duplicateTemplateName: 'A template with this name already exists.',
+  cannotDeleteDefault: 'The default template can\'t be deleted.',
+  cannotDeleteLast: 'At least one template must remain.',
 };
 
 export const authMessages = {
