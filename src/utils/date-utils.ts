@@ -47,6 +47,12 @@ export function addWorkingDays(isoDate: string, count: number, weekOff: WeekDay[
   return toISO(d);
 }
 
+// The date itself if it's a working day, else the next working day. Used to
+// snap a weekend project start date forward (e.g. Sat/Sun → Monday).
+export function nextWorkingDay(isoDate: string, weekOff: WeekDay[] = DEFAULT_WEEK_OFF): string {
+  return addWorkingDays(isoDate, 0, weekOff);
+}
+
 // Count working days strictly between two ISO dates (a - b), signed.
 export function businessDaysBetween(a: string, b: string, weekOff: WeekDay[] = DEFAULT_WEEK_OFF): number {
   if (a === b) return 0;

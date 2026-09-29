@@ -8,7 +8,7 @@ import {
   buildProjectPhases, buildTasks, phaseSummaries, projectStatusFromPhases, summarize,
   type PlainPhase, type PlainTask,
 } from "../utils/business-logic";
-import { todayISO, DEFAULT_WEEK_OFF } from "../utils/date-utils";
+import { todayISO, DEFAULT_WEEK_OFF, nextWorkingDay } from "../utils/date-utils";
 import { newId } from "../utils/template";
 import { ProjectTemplatesService } from "../project-templates/project-templates.service";
 import { projectMessages } from "../constants/messages";
@@ -205,6 +205,10 @@ export class ProjectsService {
     if (duplicate) throw new ConflictException(projectMessages.duplicateName);
 
     const weekOff = dto.weekOff && dto.weekOff.length ? dto.weekOff.slice(0, 2) : DEFAULT_WEEK_OFF;
+    // A project can't start on a weekend/off-day — snap it to the next working
+    // day (Sat/Sun → Monday by default). The form does this too; this guards
+    // direct API calls and keeps the schedule anchored on a working day.
+    const startDate = nextWorkingDay(dto.startDate, weekOff);
     const disciplines = dto.disciplines ?? [];
     const id = newId();
     // Phases/tasks are generated from the (admin-editable) DB template, filtered
@@ -212,7 +216,7 @@ export class ProjectsService {
     // later template edits never touch an existing project.
     const template = await this.templates.getForBuild(dto.templateId);
     const plainPhases = buildProjectPhases(template, disciplines);
-    const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff, template, disciplines);
+    const plainTasks = buildTasks(startDate, plainPhases, weekOff, template, disciplines);
 
     // Project + phases + tasks must all commit or none: a project without its
     // phases/tasks can't be rendered.
@@ -224,7 +228,7 @@ export class ProjectsService {
         customer: dto.customer,
         location: dto.location || null,
         ownerId: dto.owner || null,
-        startDate: dto.startDate,
+        startDate,
         endDate: dto.endDate,
         createdAt: todayISO(),
         updatedAt: new Date(),
