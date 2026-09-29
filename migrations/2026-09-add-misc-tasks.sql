@@ -8,7 +8,11 @@ CREATE TABLE IF NOT EXISTS misc_tasks (
   id           uuid PRIMARY KEY,
   title        varchar NOT NULL,
   description  text    NOT NULL DEFAULT '',
-  project_id   uuid    NULL REFERENCES projects(id)  ON DELETE SET NULL,
+  -- projects.id is varchar on the hosted DB (schema drift from the entity's
+  -- uuid type), so this FK column must be varchar too or the constraint can't
+  -- be created ("incompatible types: uuid and character varying"). newId()
+  -- values are UUID strings either way.
+  project_id   varchar NULL REFERENCES projects(id)  ON DELETE SET NULL,
   project_name varchar NULL,
   assigned_to  varchar NULL REFERENCES employees(id) ON DELETE SET NULL,
   assignees    jsonb   NOT NULL DEFAULT '[]'::jsonb,

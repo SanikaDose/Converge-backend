@@ -94,7 +94,7 @@ export class DashboardService {
     const tickets = await this.ticketRepo.find();
     const totalTickets = tickets.length;
     const openTickets = tickets.filter(t => t.status === "Open" || t.status === "In Progress").length;
-    const resolvedTickets = tickets.filter(t => t.status === "Resolved" || t.status === "Closed").length;
+    const resolvedTickets = tickets.filter(t => t.status === "Closed").length;
     const ticketResolutionPct = totalTickets ? Math.round((resolvedTickets / totalTickets) * 100) : 0;
 
     const baseline = this.baselineRepo.create({

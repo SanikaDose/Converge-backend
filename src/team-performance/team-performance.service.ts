@@ -19,7 +19,10 @@ export class TeamPerformanceService {
     const [employees, teams, tasks] = await Promise.all([
       this.employeeRepo.find(),
       this.teamRepo.find(),
-      this.taskRepo.find(),
+      // Only the four columns aggregateTeamPerformance reads — skips the heavy
+      // jsonb columns (history/checklist/dependencies/pendingChange/achievement)
+      // that this aggregate never touches, cutting the payload for ~1950 rows.
+      this.taskRepo.find({ select: { assignedTo: true, assignees: true, status: true, plannedFinish: true } }),
     ]);
     const teamNameById = new Map(teams.map(t => [t.id, t.name]));
     const input = employees.map(e => ({ id: e.id, name: e.name, role: e.role, team: teamNameById.get(e.teamId) || "", teamId: e.teamId }));

@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
-import type { AppRole, OrgRole } from "../utils/types";
+import type { AppRole, EmployeeStatus, OrgRole } from "../utils/types";
 import { Team } from "./team.entity";
 
 @Entity("employees")
@@ -48,6 +48,19 @@ export class Employee {
 
   @Column("int", { name: "reset_otp_attempts", default: 0 })
   resetOtpAttempts: number;
+
+  /** "active" or "inactive" — someone who left the org is marked inactive
+   * rather than deleted, so their name/avatar still resolves on old records. */
+  @Column("varchar", { default: "active" })
+  status: EmployeeStatus;
+
+  /**
+   * Whether this employee appears on the daily Scrum board. Nullable so the
+   * boot-time backfill can distinguish "never configured" (NULL) from an
+   * admin's explicit choice; sales team + a few others start disabled.
+   */
+  @Column("boolean", { name: "scrum_enabled", nullable: true })
+  scrumEnabled: boolean | null;
 
   @Column("varchar", { name: "team_id" })
   teamId: string;

@@ -79,14 +79,15 @@ export class TicketsService {
 
     const savedTicket = await this.ticketRepo.save(ticket);
 
-    // One call for the whole ticket: personal channels fan out per assignee,
-    // the shared team-space message is sent once (see NotificationsService).
+    // Fire-and-forget: the ticket is already persisted, so we don't make the
+    // caller wait on email/WhatsApp/Chat (each a slow network round-trip). The
+    // dispatch already isolates every channel in its own try/catch; the outer
+    // .catch here only guards against an unhandled rejection. Notifications are
+    // best-effort (as before) — nothing about the ticket depends on them.
     if (assignees.length) {
-      try {
-        await this.notificationsService.notifyTicketAssigned(savedTicket, assignees);
-      } catch (error) {
-        console.error(`Failed to send ticket notifications for ticket ${savedTicket.id}`, error);
-      }
+      void this.notificationsService
+        .notifyTicketAssigned(savedTicket, assignees)
+        .catch(error => console.error(`Failed to send ticket notifications for ticket ${savedTicket.id}`, error));
     }
 
     return savedTicket;
@@ -101,6 +102,14 @@ export class TicketsService {
     if (ticket.status === "Closed" && dto.status && dto.status !== "Closed" && dto.status !== "Reopened") {
       throw new ConflictException(ticketMessages.closedFinal);
     }
+    // A reopened ticket can only be closed again — not sent back to Open/In
+    // Progress/Resolved. Mirrors the closed-ticket rule above so the API can't
+    // be used to route around the UI, which only offers "Closed" for a reopened
+    // ticket.
+    if (ticket.status === "Reopened" && dto.status && dto.status !== "Reopened" && dto.status !== "Closed") {
+      throw new ConflictException(ticketMessages.reopenedFinal);
+    }
+    const wasClosed = ticket.status === "Closed";
     Object.assign(ticket, dto);
     // Keep the primary assignee mirror in step when assignees is edited.
     if (dto.assignees !== undefined) {
@@ -111,10 +120,33 @@ export class TicketsService {
     // The closing date is owned here, not sent by the client, so it can't be
     // backdated or skipped. Resolved→Closed keeps the original stamp: that's
     // the date the work actually finished, and Closed is just bookkeeping.
-    const isDone = ticket.status === "Resolved" || ticket.status === "Closed";
+    const isDone = ticket.status === "Closed";
     if (isDone && !ticket.resolvedAt) ticket.resolvedAt = todayISO();
     if (!isDone) ticket.resolvedAt = null;
 
-    return this.ticketRepo.save(ticket);
+    const saved = await this.ticketRepo.save(ticket);
+
+    // On the transition *into* Closed, notify the related users (email) + the
+    // team space (Google Chat). Only on the edge, so re-saving a closed ticket
+    // doesn't spam. Fire-and-forget: the ticket is already saved, so the caller
+    // doesn't wait on the (slow) sends — best-effort, same as before.
+    if (!wasClosed && saved.status === "Closed") {
+      void (async () => {
+        const assignees = await this.loadAssignees(saved.assignees);
+        await this.notificationsService.notifyTicketClosed(saved, assignees);
+      })().catch(error => console.error(`Failed to send close notifications for ticket ${saved.id}`, error));
+    }
+
+    return saved;
+  }
+
+  /** Resolve assignee ids to Employee rows (skips any that no longer exist). */
+  private async loadAssignees(ids: string[]): Promise<Employee[]> {
+    const employees: Employee[] = [];
+    for (const empId of ids ?? []) {
+      const emp = await this.employeeRepo.findOneBy({ id: empId });
+      if (emp) employees.push(emp);
+    }
+    return employees;
   }
 }

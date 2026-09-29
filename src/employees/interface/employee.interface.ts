@@ -1,4 +1,4 @@
-import type { OrgRole } from '../../utils/types';
+import type { EmployeeStatus, OrgRole } from '../../utils/types';
 
 export interface TeamMemberInterface {
   id: string;
@@ -10,6 +10,11 @@ export interface EmployeeInterface extends TeamMemberInterface {
   teamId: string;
   /** Flat team display name, denormalised for the frontend's Employee type. */
   team: string;
+  /** Directory lifecycle + scrum participation (for management + the board). */
+  status: EmployeeStatus;
+  scrumEnabled: boolean;
+  email: string | null;
+  phoneNumber: string | null;
 }
 
 export interface TeamInterface {

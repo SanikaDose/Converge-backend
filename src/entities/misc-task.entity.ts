@@ -57,6 +57,20 @@ export class MiscTask {
   @Column("date", { name: "due_date", nullable: true })
   dueDate: string | null;
 
+  /** Planned start / end of the work. Both nullable — a task may be logged
+   * before its dates are known. `dueDate` is kept for older rows. */
+  @Column("date", { name: "start_date", nullable: true })
+  startDate: string | null;
+
+  @Column("date", { name: "end_date", nullable: true })
+  endDate: string | null;
+
+  /** Optional estimate of how many hours the task should take to complete.
+   * `double precision` so it reads back as a JS number (not a string like
+   * numeric would). Nullable — the field is optional on the form. */
+  @Column("double precision", { name: "estimated_hours", nullable: true })
+  estimatedHours: number | null;
+
   /** Reuses ChecklistItem { id, text, done, createdAt?, updatedAt? }. */
   @Column("jsonb", { default: () => "'[]'" })
   checklist: ChecklistItem[];

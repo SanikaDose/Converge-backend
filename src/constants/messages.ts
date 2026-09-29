@@ -1,9 +1,6 @@
 /**
- * User-facing response text, mirroring Scout's `constants/messages.ts`.
- *
- * "Project not found." was previously repeated at three call sites in
- * projects.service alone — one place means one wording, and changing it
- * (or translating it later) is a single edit.
+ * User-facing response text in one place, so a message has one wording and is
+ * a single edit to change or translate.
  */
 export const projectMessages = {
   notFound: 'Project not found.',
@@ -14,13 +11,18 @@ export const ticketMessages = {
   notFound: 'Ticket not found.',
   projectNotFound: 'Project not found.',
   closedFinal: 'A closed ticket cannot be reopened.',
+  reopenedFinal: 'A reopened ticket can only be closed.',
 };
 
 export const templateMessages = {
   phaseNotFound: 'Phase template not found.',
   taskNotFound: 'Task template not found.',
+  templateNotFound: 'Project template not found.',
   adminOnly: 'Only an administrator can edit the project template.',
   reorderMismatch: 'The reorder list must contain exactly this phase\'s tasks.',
+  duplicateTemplateName: 'A template with this name already exists.',
+  cannotDeleteDefault: 'The default template can\'t be deleted.',
+  cannotDeleteLast: 'At least one template must remain.',
 };
 
 export const authMessages = {

@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class AddTaskTemplateDto {
   @IsString()
@@ -19,4 +19,10 @@ export class AddTaskTemplateDto {
   @Min(1)
   @Max(3650)
   duration: number;
+
+  /** Default critical points for this task (plain text lines). */
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  criticalPoints?: string[];
 }

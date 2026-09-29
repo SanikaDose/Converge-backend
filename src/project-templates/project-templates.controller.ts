@@ -7,14 +7,22 @@ import { ProjectTemplatesService } from "./project-templates.service";
 import { AddTaskTemplateDto } from "./dto/add-task-template.dto";
 import { ReorderTasksDto } from "./dto/reorder-tasks.dto";
 import { UpdateTaskTemplateDto } from "./dto/update-task-template.dto";
+import { AddPhaseTemplateDto } from "./dto/add-phase-template.dto";
+import { UpdatePhaseTemplateDto } from "./dto/update-phase-template.dto";
+import { CreateProjectTemplateDto } from "./dto/create-project-template.dto";
+import { UpdateProjectTemplateDto } from "./dto/update-project-template.dto";
 
 const routes = apiControllerPath.projectTemplates;
 
 /**
- * The master project template. Anyone signed in may read it (the create form
- * needs it); only an admin may edit its tasks — enforced here explicitly,
- * since the global guard authenticates but doesn't yet authorize by role.
- * Phases are intentionally fixed: only their tasks are mutable.
+ * Named project templates. Anyone signed in may read them (the create form
+ * needs the list + a template's phases); only an admin may create/edit/delete
+ * templates, phases, or tasks — enforced here explicitly, since the global
+ * guard authenticates but doesn't yet authorize by role.
+ *
+ * Route ordering matters: the literal-prefixed routes ('phases/…', 'tasks/…',
+ * ':templateId/phases') are declared before the bare ':templateId' routes so
+ * Nest matches them first.
  */
 @Controller(routes.root)
 export class ProjectTemplatesController {
@@ -24,11 +32,49 @@ export class ProjectTemplatesController {
     if (user.appRole !== "Admin") throw new ForbiddenException(templateMessages.adminOnly);
   }
 
-  @Get(routes.get)
-  get() {
-    return this.service.getTemplate();
+  // ---- template list + create ----
+  @Get(routes.list)
+  list() {
+    return this.service.listTemplates();
   }
 
+  @Post(routes.create)
+  createTemplate(@CurrentUser() user: JwtPayload, @Body() dto: CreateProjectTemplateDto) {
+    this.assertAdmin(user);
+    return this.service.createTemplate(dto);
+  }
+
+  // ---- phase mutations ----
+  @Post(routes.addPhase)
+  addPhase(
+    @CurrentUser() user: JwtPayload,
+    @Param("templateId", ParseUUIDPipe) templateId: string,
+    @Body() dto: AddPhaseTemplateDto,
+  ) {
+    this.assertAdmin(user);
+    return this.service.addPhase(templateId, dto);
+  }
+
+  @Patch(routes.updatePhase)
+  updatePhase(
+    @CurrentUser() user: JwtPayload,
+    @Param("phaseId", ParseUUIDPipe) phaseId: string,
+    @Body() dto: UpdatePhaseTemplateDto,
+  ) {
+    this.assertAdmin(user);
+    return this.service.updatePhase(phaseId, dto);
+  }
+
+  @Delete(routes.deletePhase)
+  deletePhase(
+    @CurrentUser() user: JwtPayload,
+    @Param("phaseId", ParseUUIDPipe) phaseId: string,
+  ) {
+    this.assertAdmin(user);
+    return this.service.deletePhase(phaseId);
+  }
+
+  // ---- task mutations ----
   @Post(routes.addTask)
   addTask(
     @CurrentUser() user: JwtPayload,
@@ -66,5 +112,30 @@ export class ProjectTemplatesController {
   ) {
     this.assertAdmin(user);
     return this.service.deleteTask(taskId);
+  }
+
+  // ---- a single template's phases + rename/delete (bare :templateId) ----
+  @Get(routes.getOne)
+  getOne(@Param("templateId", ParseUUIDPipe) templateId: string) {
+    return this.service.getTemplate(templateId);
+  }
+
+  @Patch(routes.updateTemplate)
+  updateTemplate(
+    @CurrentUser() user: JwtPayload,
+    @Param("templateId", ParseUUIDPipe) templateId: string,
+    @Body() dto: UpdateProjectTemplateDto,
+  ) {
+    this.assertAdmin(user);
+    return this.service.updateTemplate(templateId, dto);
+  }
+
+  @Delete(routes.deleteTemplate)
+  deleteTemplate(
+    @CurrentUser() user: JwtPayload,
+    @Param("templateId", ParseUUIDPipe) templateId: string,
+  ) {
+    this.assertAdmin(user);
+    return this.service.deleteTemplate(templateId);
   }
 }

@@ -42,7 +42,17 @@ export class NotificationsService {
     return `${scheme}://${hostPart}`;
   }
 
+  /** A ticket was assigned — email each assignee + one team-space card. */
   async notifyTicketAssigned(ticket: Ticket, employees: Employee[]): Promise<void> {
+    return this.dispatch(ticket, employees, "assigned");
+  }
+
+  /** A ticket was closed — email each related assignee + one team-space card. */
+  async notifyTicketClosed(ticket: Ticket, employees: Employee[]): Promise<void> {
+    return this.dispatch(ticket, employees, "closed");
+  }
+
+  private async dispatch(ticket: Ticket, employees: Employee[], variant: "assigned" | "closed"): Promise<void> {
     const origin = this.frontendOrigin();
     const base = {
       ticketNumber: `TKT-${ticket.seq}`,
@@ -60,14 +70,15 @@ export class NotificationsService {
       // Email — to the assignee's address (works with the existing Gmail SMTP).
       if (employee.email) {
         try {
-          await this.emailService.sendTicketAssignedEmail({ to: employee.email, assignedTo: employee.name, ...base });
+          await this.emailService.sendTicketEmail({ to: employee.email, assignedTo: employee.name, variant, ...base });
         } catch (error) {
           this.logger.error(`Email notification failed for ${employee.email}`, error instanceof Error ? error.stack : String(error));
         }
       }
 
       // WhatsApp — Meta Cloud API (opt-in via env + an approved template).
-      if (process.env.WHATSAPP_NOTIFICATIONS_ENABLED === "true" && employee.phoneNumber) {
+      // Only for assignment (no approved "closed" template).
+      if (variant === "assigned" && process.env.WHATSAPP_NOTIFICATIONS_ENABLED === "true" && employee.phoneNumber) {
         try {
           await this.whatsappService.sendTicketAssignedWhatsApp({ to: employee.phoneNumber, assignedTo: employee.name, ...base });
         } catch (error) {
@@ -81,7 +92,7 @@ export class NotificationsService {
     if (process.env.GOOGLE_CHAT_NOTIFICATIONS_ENABLED === "true") {
       const assignedTo = employees.map(e => e.name).join(", ") || "Unassigned";
       try {
-        await this.googleChatService.sendTicketAssignedChat({ ...base, assignedTo });
+        await this.googleChatService.sendTicketChat({ ...base, assignedTo, variant });
       } catch (error) {
         this.logger.error("Google Chat notification failed", error instanceof Error ? error.stack : String(error));
       }

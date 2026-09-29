@@ -1,4 +1,4 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Post } from "@nestjs/common";
 import { apiControllerPath } from "../constants/routeConstants";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/interface/auth.interface";
@@ -14,5 +14,11 @@ export class NotificationFeedController {
     // Identity comes from the verified token, never a param — a caller can't
     // read someone else's feed.
     return this.service.getForUser(user.sub);
+  }
+
+  @Post(apiControllerPath.notifications.markRead)
+  markRead(@CurrentUser() user: JwtPayload): Promise<{ updated: number }> {
+    // Scoped to the caller's own notifications, same as the feed.
+    return this.service.markAllRead(user.sub);
   }
 }

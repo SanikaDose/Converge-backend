@@ -10,7 +10,10 @@ import { Ticket } from "./entities/ticket.entity";
 import { DashboardBaseline } from "./entities/dashboard-baseline.entity";
 import { PhaseTemplate } from "./entities/phase-template.entity";
 import { TaskTemplate } from "./entities/task-template.entity";
+import { ProjectTemplate } from "./entities/project-template.entity";
 import { MiscTask } from "./entities/misc-task.entity";
+import { Notification } from "./entities/notification.entity";
+import { ScrumEntry } from "./entities/scrum-entry.entity";
 import { AuthModule } from "./auth/auth.module";
 import { ProjectTemplatesModule } from "./project-templates/project-templates.module";
 import { EmployeesModule } from "./employees/employees.module";
@@ -20,6 +23,7 @@ import { TeamPerformanceModule } from "./team-performance/team-performance.modul
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { MiscTasksModule } from "./misc-tasks/misc-tasks.module";
 import { NotificationFeedModule } from "./notification-feed/notification-feed.module";
+import { ScrumModule } from "./scrum/scrum.module";
 import { SeedModule } from "./seed/seed.module";
 
 @Module({
@@ -38,7 +42,7 @@ import { SeedModule } from "./seed/seed.module";
       // Hosted Postgres (Render, Railway, Neon, Supabase) requires TLS
 
       ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
-      entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, PhaseTemplate, TaskTemplate, MiscTask],
+      entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, ProjectTemplate, PhaseTemplate, TaskTemplate, MiscTask, Notification, ScrumEntry],
       synchronize: process.env.DB_SYNCHRONIZE === "true",
     }),
     AuthModule,
@@ -50,6 +54,7 @@ import { SeedModule } from "./seed/seed.module";
     DashboardModule,
     MiscTasksModule,
     NotificationFeedModule,
+    ScrumModule,
     SeedModule,
   ],
 })

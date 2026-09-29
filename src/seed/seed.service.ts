@@ -29,14 +29,6 @@ function findTask(tasks: PlainTask[], phases: PlainPhase[], phaseIndex: number, 
   return task;
 }
 
-/**
- * Stamps a whole task list with a plausible in-flight snapshot as of
- * `today` — ported verbatim from converge_frontend/lib/mockDb.ts's
- * simulateProgress, see that file's comment for the exact rules (tasks
- * past their planned finish are mostly Completed, a ~1-in-6 left
- * in-flight so "Delayed" isn't always zero, tasks spanning today are
- * In Progress, two-out-of-three get a round-robin owner).
- */
 /** "Sanika Dose" → "sanikad@elansoltech.com" (firstname + last-name initial). */
 function deriveEmail(name: string): string {
   const parts = name.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -46,6 +38,12 @@ function deriveEmail(name: string): string {
   return `${local}@elansoltech.com`;
 }
 
+/**
+ * Stamps a task list with a plausible in-flight snapshot as of `today`: tasks
+ * past their planned finish are mostly Completed (~1 in 6 left In Progress so
+ * "Delayed" isn't always zero), tasks spanning today are In Progress, and two
+ * of every three get a round-robin owner.
+ */
 function simulateProgress(tasks: PlainTask[], today: string, weekOff: WeekDay[]): void {
   tasks.forEach((t, i) => {
     if (i % 3 !== 0) t.assignedTo = EMPLOYEE_CYCLE[i % EMPLOYEE_CYCLE.length];
@@ -89,13 +87,9 @@ export class SeedService implements OnModuleInit {
     const projectCount = await this.projectRepo.count();
     if (projectCount > 0) {
       this.logger.log("Projects table already has data — skipping seed.");
-      // Both still run: the demo projects are seeded once, but the org
-      // directory is a living list — people get added and roles change, and
-      // an existing database would otherwise never see those edits.
+      // Demo projects seed once, but the org directory and credentials are
+      // reconciled every boot so directory edits and pre-auth rows are picked up.
       await this.ensureOrgDirectory();
-      // Employees seeded before sign-in existed have no employeeCode/
-      // passwordHash, and nobody could log in without a backfill.
-      // Idempotent — only fills columns that are still null.
       await this.ensureCredentials();
       return;
     }
@@ -103,24 +97,14 @@ export class SeedService implements OnModuleInit {
   }
 
   /**
-   * Reconciles the teams/employees tables against SEED_TEAMS on every boot,
-   * so that file stays the single source of truth for the directory:
-   * new teams and people are inserted, and existing rows have their name,
-   * org role, app role, and team brought back in line.
-   *
-   * Safe to overwrite those four columns because nothing in the app edits
-   * them — there's no employee-management UI. Sign-in columns
-   * (employeeCode/passwordHash) are deliberately left alone here and
-   * handled by ensureCredentials, which only ever fills blanks.
-   *
-   * Note this does NOT delete employees missing from SEED_TEAMS: they may
-   * still be referenced as a task assignee, project owner, or ticket
-   * assignee, and removing them would orphan that data.
+   * Reconciles teams/employees against SEED_TEAMS (the directory's source of
+   * truth) on every boot: inserts new teams/people and brings each existing
+   * row's role, app role, and team back in line. Does NOT touch `name` (users
+   * edit it), sign-in columns (see ensureCredentials), or delete anyone missing
+   * from SEED_TEAMS (they may still be referenced by tasks/projects/tickets).
    */
   async ensureOrgDirectory(): Promise<void> {
-    // Read the whole directory once and diff in memory. Doing a findOneBy
-    // per member meant one query each on every boot, and only a handful of
-    // rows ever actually differ.
+    // Read the directory once and diff in memory; only a few rows ever differ.
     const [existingTeams, existingEmployees] = await Promise.all([
       this.teamRepo.find(),
       this.employeeRepo.find(),
@@ -148,10 +132,8 @@ export class SeedService implements OnModuleInit {
           added++;
           continue;
         }
-        // `name` is deliberately NOT reconciled: it's the one field a user
-        // can edit on their own profile, and overwriting it here would
-        // silently revert that on the next restart. Role, app role, and team
-        // stay organisation-controlled and are still kept in line.
+        // `name` is not reconciled (users edit it on their profile). Role, app
+        // role, and team are org-controlled and kept in line.
         if (employee.role === member.role && employee.teamId === team.id
           && employee.appRole === appRole) continue;
         employee.role = member.role;
@@ -161,8 +143,7 @@ export class SeedService implements OnModuleInit {
       }
     }
 
-    // Teams first: employees carry a FK to them, so a brand-new team has to
-    // exist before its members can be inserted.
+    // Teams first — employees carry a FK to them.
     if (teamsToSave.length) await this.teamRepo.save(teamsToSave);
     if (employeesToSave.length) await this.employeeRepo.save(employeesToSave);
 
@@ -171,15 +152,12 @@ export class SeedService implements OnModuleInit {
   }
 
   /**
-   * Gives every seeded employee a sign-in code, the shared dev password
-   * hash, and an app role — filling only what's missing, so re-running
-   * never clobbers a credential that's already set.
+   * Gives every seeded employee a sign-in code, the shared dev password hash,
+   * and an app role — filling only blanks, so it never clobbers a set credential.
    */
   async ensureCredentials(): Promise<void> {
     const credentials = buildSeedCredentials();
     const credById = new Map(credentials.map(c => [c.id, c]));
-    // Same one-read-then-diff shape as ensureOrgDirectory, for the same
-    // reason. Steady state is zero writes, so this usually costs one SELECT.
     const employees = await this.employeeRepo.find();
 
     const toSave: Employee[] = [];
@@ -189,13 +167,10 @@ export class SeedService implements OnModuleInit {
       if (cred) {
         if (!employee.employeeCode) { employee.employeeCode = cred.employeeCode; dirty = true; }
         if (!employee.appRole) { employee.appRole = cred.appRole; dirty = true; }
-        // bcrypt is intentionally slow — only hash for rows that actually
-        // need one, never once per employee per boot.
+        // Only hash for rows that need one — bcrypt is intentionally slow.
         if (!employee.passwordHash) { employee.passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10); dirty = true; }
       }
-      // Login is by email — backfill any blank address as firstname+lastinitial
-      // @elansoltech.com (e.g. "Sanika Dose" → sanikad@elansoltech.com). Only
-      // fills blanks, so a manually corrected address is never overwritten.
+      // Login is by email — backfill any blank address (see deriveEmail).
       if (!employee.email) { employee.email = deriveEmail(employee.name); dirty = true; }
       if (dirty) toSave.push(employee);
     }
@@ -228,11 +203,9 @@ export class SeedService implements OnModuleInit {
   }
 
   /**
-   * Project A — TE Connectivity, early-stage Product. Started a few days
-   * ago so only Project Initialization is naturally due; hand-curated
-   * (not simulateProgress) so specific showcase states (Pending Approval,
-   * an early-finish achievement) are guaranteed visible, exactly matching
-   * the frontend's original seed data.
+   * Project A — TE Connectivity, early-stage Product. Hand-curated (not just
+   * simulateProgress) so showcase states — a Pending Approval task, an
+   * early-finish achievement — are guaranteed visible.
    */
   private async seedProjectA(): Promise<string> {
     const today = todayISO();
@@ -299,10 +272,9 @@ export class SeedService implements OnModuleInit {
   }
 
   /**
-   * Project B — Vertex Robotics, well-underway Solution. Started ~35
-   * working days ago (most of the plan is in the past) so simulateProgress
-   * alone produces a realistic mostly-complete project with genuine
-   * delays, without hand-authoring status for all 62 tasks.
+   * Project B — Vertex Robotics, well-underway Solution. Started ~35 working
+   * days ago so simulateProgress alone yields a realistic mostly-complete
+   * project with genuine delays, no hand-authoring needed.
    */
   private async seedProjectB(): Promise<string> {
     const today = todayISO();
@@ -346,7 +318,7 @@ export class SeedService implements OnModuleInit {
         id: newId(), seq: 3, title: "Kickoff meeting recording missing slide 4",
         description: "Recording cuts out during the scope walkthrough — re-share the deck separately.",
         projectId: projectAId, projectName: projectA!.name, phase: "01 · Project Initialization",
-        assignedTo: null, priority: "Low", status: "Resolved", createdAt: today,
+        assignedTo: null, priority: "Low", status: "Closed", createdAt: today,
         resolvedAt: today,
       }),
       this.ticketRepo.create({
