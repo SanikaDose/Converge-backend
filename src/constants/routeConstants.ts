@@ -26,6 +26,9 @@ export const apiControllerPath = {
   projects: {
     root: 'projects',
     getList: '',
+    // Bulk board fetch: index + full details in one request (declared before
+    // the ':id' route so the literal 'board' segment matches first).
+    board: 'board',
     create: '',
     getById: ':id',
     updateById: ':id',

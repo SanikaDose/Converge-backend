@@ -35,6 +35,23 @@ function toPlainTask(t: Task): PlainTask {
 function toTaskLite(tasks: Task[]) {
   return tasks.map(t => ({ phaseId: t.phaseId, name: t.name, plannedFinish: t.plannedFinish, actualFinish: t.actualFinish, status: t.status }));
 }
+
+/**
+ * The trimmed task shape the Kanban board actually renders — everything the
+ * card, the overdue/late math, and the "complete blocked by open checklist"
+ * gate read, and nothing else. Deliberately omits the heavy jsonb the board
+ * never shows (history/dependencies/pendingChange) plus description/dayOffset/
+ * duration/actualStart/order, which is what made the full board payload ~1.5MB.
+ * A drag persists via the full detail fetched on demand, not from this shape.
+ */
+function toBoardTask(t: Task) {
+  const assignees = t.assignees && t.assignees.length ? t.assignees : (t.assignedTo ? [t.assignedTo] : []);
+  return {
+    id: t.id, phaseId: t.phaseId, name: t.name, status: t.status, priority: t.priority,
+    assignees, plannedStart: t.plannedStart, plannedFinish: t.plannedFinish, actualFinish: t.actualFinish,
+    achievement: t.achievement ?? null, checklist: t.checklist ?? [],
+  };
+}
 function toPhasesLite(phases: Phase[]) {
   return phases.map(p => ({ id: p.id, critical: p.critical, name: p.name, notRequired: !!p.notRequired }));
 }
@@ -88,7 +105,18 @@ export class ProjectsService {
     const projectIds = projects.map(p => p.id);
     const [allPhases, allTasks] = await Promise.all([
       this.phaseRepo.find({ where: { projectId: In(projectIds) }, order: { order: "ASC" } }),
-      this.taskRepo.find({ where: { projectId: In(projectIds) }, order: { order: "ASC" } }),
+      // The index only needs stats + taskLite, so fetch just the lightweight
+      // columns and skip the heavy jsonb (history/checklist/dependencies/
+      // assignees/achievement/pendingChange) and description — those were the
+      // bulk of the old ~362KB payload for ~1950 tasks.
+      this.taskRepo.find({
+        where: { projectId: In(projectIds) },
+        order: { order: "ASC" },
+        select: {
+          id: true, projectId: true, phaseId: true, name: true, status: true,
+          plannedStart: true, plannedFinish: true, actualStart: true, actualFinish: true,
+        },
+      }),
     ]);
 
     const phasesByProject = groupBy(allPhases, p => p.projectId);
@@ -98,25 +126,89 @@ export class ProjectsService {
     return projects.map((project) => {
       const phases = phasesByProject.get(project.id) ?? [];
       const tasks = tasksByProject.get(project.id) ?? [];
-      const plainPhases = phases.map(toPlainPhase);
-      const plainTasks = tasks.map(toPlainTask);
-      // Project totals exclude tasks in a not-required phase as well as
-      // individually not-required tasks (summarize handles the latter).
-      const notRequiredPhaseIds = new Set(plainPhases.filter(p => p.notRequired).map(p => p.id));
-      const countableTasks = plainTasks.filter(t => !notRequiredPhaseIds.has(t.phaseId));
-      const s = summarize(countableTasks, today);
-      const phaseRows = phaseSummaries(plainPhases, plainTasks, today, project.startDate);
-      const bucket = projectStatusFromPhases(phaseRows);
+      return this.buildIndexRow(project, phases, tasks, phases.map(toPlainPhase), tasks.map(toPlainTask), today);
+    });
+  }
+
+  /**
+   * Bulk board fetch for the Kanban page: returns the project index **and**
+   * every project's board-shaped details in a single request built from three
+   * queries (projects + all phases + all tasks).
+   *
+   * Two things make this fast:
+   *  1. One request instead of `1 + N` — the Kanban used to fetch the index
+   *     and then one detail request per project (28 for 27 projects), each
+   *     paying the remote-DB round trip.
+   *  2. The task query `select`s only the columns the board renders, and each
+   *     task is mapped to the trimmed `toBoardTask` shape — the heavy jsonb
+   *     (history/dependencies/pendingChange) is never loaded or sent, which
+   *     took the payload from ~1.5MB to a fraction of that. The meta and phases
+   *     are trimmed to what the board reads too (name/type/weekOff;
+   *     id/name/notRequired). A drag reloads the one project's *full* detail
+   *     on demand before persisting, so nothing is lost by trimming here.
+   */
+  async findAllBoard() {
+    const projects = await this.projectRepo.find({ order: { createdAt: "DESC" } });
+    if (!projects.length) return { index: [], details: [] };
+
+    const projectIds = projects.map(p => p.id);
+    const [allPhases, allTasks] = await Promise.all([
+      this.phaseRepo.find({ where: { projectId: In(projectIds) }, order: { order: "ASC" } }),
+      this.taskRepo.find({
+        where: { projectId: In(projectIds) },
+        order: { order: "ASC" },
+        // Only what the board renders + the index stats need. assignedTo is
+        // selected only to back-fill assignees for legacy rows (not output).
+        select: {
+          id: true, projectId: true, phaseId: true, name: true, status: true, priority: true,
+          assignedTo: true, assignees: true, plannedStart: true, plannedFinish: true,
+          actualStart: true, actualFinish: true, achievement: true, checklist: true,
+        },
+      }),
+    ]);
+
+    const phasesByProject = groupBy(allPhases, p => p.projectId);
+    const tasksByProject = groupBy(allTasks, t => t.projectId);
+
+    // The board's index is only the project-filter dropdown source, so it needs
+    // just id/name/type — not the portfolio stats + taskLite/phasesLite the
+    // dashboard index computes (that was ~35% of the payload and unused here).
+    const index = projects.map(p => ({ id: p.id, name: p.name, type: p.type }));
+    const details = projects.map((project) => {
+      const phases = phasesByProject.get(project.id) ?? [];
+      const tasks = tasksByProject.get(project.id) ?? [];
       return {
-        id: project.id, name: project.name, type: project.type, customer: project.customer,
-        location: project.location,
-        owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
-        updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
-        financialYear: project.financialYear,
-        pct: s.pct, completed: s.completed, total: s.total, delayed: s.delayed, plannedEnd: s.plannedEnd,
-        bucket, taskLite: toTaskLite(tasks), phasesLite: toPhasesLite(phases),
+        id: project.id,
+        meta: { name: project.name, type: project.type, weekOff: project.weekOff },
+        phases: phases.map(p => ({ id: p.id, name: p.name, notRequired: !!p.notRequired })),
+        tasks: tasks.map(toBoardTask),
       };
     });
+
+    return { index, details };
+  }
+
+  /** Compute a single index row from already-loaded phase/task rows. */
+  private buildIndexRow(
+    project: Project, phases: Phase[], tasks: Task[],
+    plainPhases: PlainPhase[], plainTasks: PlainTask[], today: string,
+  ) {
+    // Project totals exclude tasks in a not-required phase as well as
+    // individually not-required tasks (summarize handles the latter).
+    const notRequiredPhaseIds = new Set(plainPhases.filter(p => p.notRequired).map(p => p.id));
+    const countableTasks = plainTasks.filter(t => !notRequiredPhaseIds.has(t.phaseId));
+    const s = summarize(countableTasks, today);
+    const phaseRows = phaseSummaries(plainPhases, plainTasks, today, project.startDate);
+    const bucket = projectStatusFromPhases(phaseRows);
+    return {
+      id: project.id, name: project.name, type: project.type, customer: project.customer,
+      location: project.location,
+      owner: project.ownerId, startDate: project.startDate, endDate: project.endDate,
+      updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
+      financialYear: project.financialYear,
+      pct: s.pct, completed: s.completed, total: s.total, delayed: s.delayed, plannedEnd: s.plannedEnd,
+      bucket, taskLite: toTaskLite(tasks), phasesLite: toPhasesLite(phases),
+    };
   }
 
   async findOneDetail(id: string) {

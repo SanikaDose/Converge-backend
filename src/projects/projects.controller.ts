@@ -18,6 +18,15 @@ export class ProjectsController {
     return this.projectsService.findAllIndex();
   }
 
+  // Bulk board fetch for the Kanban page: index + trimmed per-project details
+  // (board-shaped tasks) in one request. Declared before the ':id' route so
+  // 'board' isn't parsed as a project id. Return type is inferred from the
+  // service since the details are the trimmed board shape, not ProjectDetail.
+  @Get(apiControllerPath.projects.board)
+  findAllBoard() {
+    return this.projectsService.findAllBoard();
+  }
+
   @Post(apiControllerPath.projects.create)
   create(@Body() dto: CreateProjectDto): Promise<ProjectDetailInterface> {
     return this.projectsService.create(dto);

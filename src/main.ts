@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import * as dns from "node:dns";
+import compression from "compression";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -15,6 +16,13 @@ dns.setDefaultResultOrder("ipv4first");
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+
+  // gzip every response big enough to be worth it. JSON compresses ~85%, so
+  // the large list payloads (the Kanban board, the portfolio index, team
+  // performance) go over the wire at a fraction of their size — the biggest
+  // single win for load time on the split Vercel↔Render deployment, where the
+  // frontend and backend talk over the public internet.
+  app.use(compression());
 
   app.setGlobalPrefix(apiControllerPath.main.root);
 
