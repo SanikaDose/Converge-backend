@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { EmailService } from "../notifications/email/email.service";
+import { GoogleChatService } from "../notifications/google-chat/google-chat.service";
 import { NotificationFeedService } from "../notification-feed/notification-feed.service";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
@@ -22,6 +23,7 @@ export class MiscTasksService {
     @InjectRepository(Project) private readonly projectRepo: Repository<Project>,
     @InjectRepository(Employee) private readonly employeeRepo: Repository<Employee>,
     private readonly emailService: EmailService,
+    private readonly googleChatService: GoogleChatService,
     private readonly notificationFeed: NotificationFeedService,
   ) {}
 
@@ -147,8 +149,40 @@ export class MiscTasksService {
 
     // Notify the assignees they've been given a task (bell + email).
     await this.notifyAssignees(saved, "assigned");
+    // Post one card to the team space, like tickets — creation only.
+    // Fire-and-forget so a slow/failed webhook never delays the response.
+    void this.postCreatedToChat(saved);
 
     return saved;
+  }
+
+  /**
+   * A new task was created — post a single card to the Google Chat space
+   * (team-wide visibility, mirroring tickets). The assignees still get their own
+   * private email + bell via notifyAssignees. Best-effort and isolated.
+   */
+  private async postCreatedToChat(task: MiscTask): Promise<void> {
+    if (process.env.GOOGLE_CHAT_NOTIFICATIONS_ENABLED !== "true") return;
+    try {
+      const assigneeIds = task.assignees ?? [];
+      // Resolve the assignees' and the creator's names in one query.
+      const lookupIds = Array.from(new Set([task.createdBy, ...assigneeIds].filter(Boolean))) as string[];
+      const employees = lookupIds.length ? await this.employeeRepo.find({ where: { id: In(lookupIds) } }) : [];
+      const nameById = new Map(employees.map(e => [e.id, e.name]));
+      const origin = this.frontendOrigin();
+      await this.googleChatService.sendMiscTaskChat({
+        taskTitle: task.title,
+        relatedTo: task.projectName || "Other",
+        priority: task.priority,
+        assignedTo: assigneeIds.map(id => nameById.get(id) ?? id).join(", ") || "Unassigned",
+        createdBy: (task.createdBy && nameById.get(task.createdBy)) || "—",
+        estimatedHours: task.estimatedHours ?? null,
+        dueDate: task.endDate ?? task.dueDate ?? null,
+        taskUrl: origin ? `${origin}/tasks?task=${task.id}` : undefined,
+      });
+    } catch (error) {
+      this.logger.error(`Google Chat notification failed for misc task ${task.id}`, error instanceof Error ? error.stack : String(error));
+    }
   }
 
   async update(id: string, dto: UpdateMiscTaskDto): Promise<MiscTask> {
