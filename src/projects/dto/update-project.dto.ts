@@ -14,7 +14,6 @@ export interface ProjectMetaPatch {
   weekOff?: WeekDay[];
   relatedRepositories?: RelatedRepository[];
 }
-
 export interface PhasePatch {
   id: string;
   name: string;
