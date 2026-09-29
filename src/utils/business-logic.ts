@@ -10,13 +10,9 @@ import type { Achievement, ChecklistItem, HistoryEntry, OrgRole, PendingChange, 
 
 /**
  * The template phases a project with the given disciplines should get: every
- * common phase, plus each discipline-specific phase whose discipline was
- * selected. An empty selection means "all" (every phase). This is what makes
- * choosing e.g. [Software, Vision] leave out the Automation phase at creation.
- *
- * `template` is passed in (it now lives in the database — see
- * ProjectTemplatesService) rather than read from the in-code TEMPLATE, so the
- * caller controls the source. Business logic stays DB-free.
+ * common phase plus each selected discipline's phase. An empty selection means
+ * all phases. The template is passed in (the caller owns its source) so this
+ * stays DB-free.
  */
 export function templateForDisciplines(template: TemplatePhase[], disciplines: PhaseDiscipline[] = []): TemplatePhase[] {
   if (!disciplines.length) return template;
@@ -209,16 +205,12 @@ export function computeAchievement(task: PlainTask, weekOff: WeekDay[]): Achieve
   // positive when actualFinish is before plannedFinish, and NEGATIVE when
   // the task finished after its planned end date.
   const daysEarly = businessDaysBetween(task.plannedFinish, task.actualFinish, weekOff);
-  // An achievement is only for work completed within its timeline — i.e. on
-  // or before the planned finish date. A task that finished late earns
-  // nothing, even if it was worked quickly (this guard is what "Outstanding
-  // Performance" was missing, so a late-but-fast task used to misfire it).
+  // A late finish earns nothing, even if the work itself was fast.
   if (daysEarly < 0) return null;
   if (daysEarly >= 2) return { label: `Completed ${daysEarly} Days Early`, days: daysEarly };
   if (daysEarly === 1) return { label: "Finished Before Deadline", days: 1 };
-  // Finished exactly on the deadline (daysEarly === 0): reward only if it
-  // was also done in fewer working days than planned. actualFinish is the
-  // later date so it comes first (see the signed convention above).
+  // Finished exactly on time: reward only if done in fewer working days than
+  // planned (actualFinish first — see the signed convention above).
   if (task.actualStart) {
     const actualDuration = businessDaysBetween(task.actualFinish, task.actualStart, weekOff) + 1;
     if (actualDuration < task.duration) return { label: "Outstanding Performance", days: task.duration - actualDuration };

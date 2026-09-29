@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nest
 import { EmailService } from "../notifications/email/email.service";
 import { NotificationFeedService } from "../notification-feed/notification-feed.service";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { MiscTask } from "../entities/misc-task.entity";
 import { Project } from "../entities/project.entity";
 import { Employee } from "../entities/employee.entity";
@@ -47,11 +47,7 @@ export class MiscTasksService {
     const ids = targetIds ?? task.assignees ?? [];
     if (!ids.length) return;
 
-    const employees: Employee[] = [];
-    for (const id of ids) {
-      const emp = await this.employeeRepo.findOneBy({ id });
-      if (emp) employees.push(emp);
-    }
+    const employees = await this.employeeRepo.find({ where: { id: In(ids) } });
     if (!employees.length) return;
 
     const origin = this.frontendOrigin();
@@ -72,9 +68,8 @@ export class MiscTasksService {
       this.logger.error(`Bell notification failed for misc task ${task.id}`, error instanceof Error ? error.stack : String(error));
     }
 
-    // Email — per assignee who has an address. Fire-and-forget: emails are slow
-    // SMTP round-trips, and the task (and the bell write above) are already
-    // saved, so we don't block the caller on them. Best-effort, as before.
+    // Email each assignee who has an address. Fire-and-forget: the task and bell
+    // write are already saved, so don't block the caller on slow email sends.
     const recipients = employees.filter(e => e.email);
     if (recipients.length) {
       void (async () => {
@@ -115,10 +110,9 @@ export class MiscTasksService {
     const requested = Array.from(new Set(
       (assignees && assignees.length ? assignees : (assignedTo ? [assignedTo] : [])).filter(Boolean),
     ));
-    for (const id of requested) {
-      const emp = await this.employeeRepo.findOneBy({ id });
-      if (!emp) throw new NotFoundException("Assigned employee not found");
-    }
+    if (!requested.length) return [];
+    const found = await this.employeeRepo.find({ where: { id: In(requested) }, select: { id: true } });
+    if (found.length !== requested.length) throw new NotFoundException("Assigned employee not found");
     return requested;
   }
 

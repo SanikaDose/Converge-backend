@@ -5,12 +5,10 @@ import { CreateProjectDto } from "./dto/create-project.dto";
 import { UpdateProjectDto } from "./dto/update-project.dto";
 import type { DeleteProjectResponseInterface, ProjectDetailInterface, ProjectIndexRowInterface } from "./interface/project.interface";
 
+// `id` params use ParseUUIDPipe so a malformed id returns 400, not a 500 from
+// the Postgres driver.
 @Controller(apiControllerPath.projects.root)
 export class ProjectsController {
-  // ParseUUIDPipe rejects a malformed id with a 400 before it reaches
-  // Postgres. Without it a non-uuid path param reaches the driver and
-  // surfaces as a 500 QueryFailedError, which is a server-error response
-  // to what is really a bad request.
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Get(apiControllerPath.projects.getList)
@@ -18,10 +16,8 @@ export class ProjectsController {
     return this.projectsService.findAllIndex();
   }
 
-  // Bulk board fetch for the Kanban page: index + trimmed per-project details
-  // (board-shaped tasks) in one request. Declared before the ':id' route so
-  // 'board' isn't parsed as a project id. Return type is inferred from the
-  // service since the details are the trimmed board shape, not ProjectDetail.
+  // Kanban board fetch. Declared before the ':id' route so 'board' isn't parsed
+  // as a project id.
   @Get(apiControllerPath.projects.board)
   findAllBoard() {
     return this.projectsService.findAllBoard();

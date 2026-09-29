@@ -97,12 +97,9 @@ export class AuthService {
     const employee = await this.employeeRepo.findOneBy({ id: userId });
     if (!employee) throw new NotFoundException(authMessages.accountNotFound);
 
-    // Deliberately 400, not 401. The caller IS authenticated here — their
-    // token was accepted by the guard — so what failed is the body, not the
-    // session. Returning 401 makes the status ambiguous between "wrong
-    // password" and "your token expired", and the frontend has to treat a
-    // 401 as a dead session and sign the user out; a mistyped current
-    // password would eject them from the app instead of showing an error.
+    // Deliberately 400, not 401: the caller is authenticated, so the body
+    // failed, not the session. A 401 here would trip the frontend's dead-session
+    // handler and sign the user out over a mistyped current password.
     const ok = await bcrypt.compare(dto.currentPassword, employee.passwordHash ?? DUMMY_HASH);
     if (!employee.passwordHash || !ok) {
       throw new BadRequestException(authMessages.currentPasswordWrong);

@@ -19,10 +19,14 @@ function toPlainPhase(p: Phase): PlainPhase {
   return { id: p.id, name: p.name, critical: p.critical, order: p.order, notRequired: !!p.notRequired };
 }
 
+// Legacy rows predate `assignees`; fall back to the single `assignedTo`.
+function resolveAssignees(t: Pick<Task, "assignees" | "assignedTo">): string[] {
+  if (t.assignees && t.assignees.length) return t.assignees;
+  return t.assignedTo ? [t.assignedTo] : [];
+}
+
 function toPlainTask(t: Task): PlainTask {
-  // Legacy rows predate `assignees`: fall back to the single assignedTo so
-  // older tasks still show their owner.
-  const assignees = t.assignees && t.assignees.length ? t.assignees : (t.assignedTo ? [t.assignedTo] : []);
+  const assignees = resolveAssignees(t);
   return {
     id: t.id, phaseId: t.phaseId, order: t.order, name: t.name, description: t.description,
     assignedTo: t.assignedTo, assignees, priority: t.priority, dependencies: t.dependencies,
@@ -36,16 +40,12 @@ function toTaskLite(tasks: Task[]) {
   return tasks.map(t => ({ phaseId: t.phaseId, name: t.name, plannedFinish: t.plannedFinish, actualFinish: t.actualFinish, status: t.status }));
 }
 
-/**
- * The trimmed task shape the Kanban board actually renders — everything the
- * card, the overdue/late math, and the "complete blocked by open checklist"
- * gate read, and nothing else. Deliberately omits the heavy jsonb the board
- * never shows (history/dependencies/pendingChange) plus description/dayOffset/
- * duration/actualStart/order, which is what made the full board payload ~1.5MB.
- * A drag persists via the full detail fetched on demand, not from this shape.
- */
+// Trimmed task shape for the Kanban board: only the fields a card, the
+// overdue/late math, and the complete-blocked-by-checklist gate read. Omitting
+// the heavy jsonb (history/dependencies/pendingChange) keeps the board payload
+// small; a drag reloads the project's full detail before saving.
 function toBoardTask(t: Task) {
-  const assignees = t.assignees && t.assignees.length ? t.assignees : (t.assignedTo ? [t.assignedTo] : []);
+  const assignees = resolveAssignees(t);
   return {
     id: t.id, phaseId: t.phaseId, name: t.name, status: t.status, priority: t.priority,
     assignees, plannedStart: t.plannedStart, plannedFinish: t.plannedFinish, actualFinish: t.actualFinish,
@@ -90,13 +90,9 @@ export class ProjectsService {
   ) { }
 
   /**
-   * Fetches every project's phases and tasks in two queries and groups them
-   * in memory, rather than querying per project.
-   *
-   * This was `1 + 2N` queries — the per-project fetches were inside a map,
-   * so the parallel `Promise.all` hid the count without reducing it: 4
-   * projects meant 9 round trips, 100 projects would mean 201. Grouping
-   * client-side is cheap; the round trips are what cost.
+   * Portfolio index: every project with its computed stats. Loads all phases
+   * and tasks in two `In(ids)` queries and groups them in memory, rather than
+   * one query per project.
    */
   async findAllIndex() {
     const projects = await this.projectRepo.find({ order: { createdAt: "DESC" } });
@@ -105,10 +101,7 @@ export class ProjectsService {
     const projectIds = projects.map(p => p.id);
     const [allPhases, allTasks] = await Promise.all([
       this.phaseRepo.find({ where: { projectId: In(projectIds) }, order: { order: "ASC" } }),
-      // The index only needs stats + taskLite, so fetch just the lightweight
-      // columns and skip the heavy jsonb (history/checklist/dependencies/
-      // assignees/achievement/pendingChange) and description — those were the
-      // bulk of the old ~362KB payload for ~1950 tasks.
+      // The index only needs stats + taskLite, so skip the heavy jsonb columns.
       this.taskRepo.find({
         where: { projectId: In(projectIds) },
         order: { order: "ASC" },
@@ -131,21 +124,12 @@ export class ProjectsService {
   }
 
   /**
-   * Bulk board fetch for the Kanban page: returns the project index **and**
-   * every project's board-shaped details in a single request built from three
-   * queries (projects + all phases + all tasks).
-   *
-   * Two things make this fast:
-   *  1. One request instead of `1 + N` — the Kanban used to fetch the index
-   *     and then one detail request per project (28 for 27 projects), each
-   *     paying the remote-DB round trip.
-   *  2. The task query `select`s only the columns the board renders, and each
-   *     task is mapped to the trimmed `toBoardTask` shape — the heavy jsonb
-   *     (history/dependencies/pendingChange) is never loaded or sent, which
-   *     took the payload from ~1.5MB to a fraction of that. The meta and phases
-   *     are trimmed to what the board reads too (name/type/weekOff;
-   *     id/name/notRequired). A drag reloads the one project's *full* detail
-   *     on demand before persisting, so nothing is lost by trimming here.
+   * Bulk fetch for the Kanban board: the project index plus every project's
+   * board-shaped details, in one request built from three queries. This
+   * replaces the old `1 + N` fan-out (one detail request per project). The
+   * task query and mappers are trimmed to what the board renders — the index
+   * to id/name/type (its only use is the filter dropdown), the tasks to
+   * `toBoardTask`. A drag reloads the one project's full detail before saving.
    */
   async findAllBoard() {
     const projects = await this.projectRepo.find({ order: { createdAt: "DESC" } });
@@ -157,8 +141,7 @@ export class ProjectsService {
       this.taskRepo.find({
         where: { projectId: In(projectIds) },
         order: { order: "ASC" },
-        // Only what the board renders + the index stats need. assignedTo is
-        // selected only to back-fill assignees for legacy rows (not output).
+        // assignedTo is selected only to back-fill assignees for legacy rows.
         select: {
           id: true, projectId: true, phaseId: true, name: true, status: true, priority: true,
           assignedTo: true, assignees: true, plannedStart: true, plannedFinish: true,
@@ -170,31 +153,23 @@ export class ProjectsService {
     const phasesByProject = groupBy(allPhases, p => p.projectId);
     const tasksByProject = groupBy(allTasks, t => t.projectId);
 
-    // The board's index is only the project-filter dropdown source, so it needs
-    // just id/name/type — not the portfolio stats + taskLite/phasesLite the
-    // dashboard index computes (that was ~35% of the payload and unused here).
     const index = projects.map(p => ({ id: p.id, name: p.name, type: p.type }));
-    const details = projects.map((project) => {
-      const phases = phasesByProject.get(project.id) ?? [];
-      const tasks = tasksByProject.get(project.id) ?? [];
-      return {
-        id: project.id,
-        meta: { name: project.name, type: project.type, weekOff: project.weekOff },
-        phases: phases.map(p => ({ id: p.id, name: p.name, notRequired: !!p.notRequired })),
-        tasks: tasks.map(toBoardTask),
-      };
-    });
+    const details = projects.map((project) => ({
+      id: project.id,
+      meta: { name: project.name, type: project.type, weekOff: project.weekOff },
+      phases: (phasesByProject.get(project.id) ?? []).map(p => ({ id: p.id, name: p.name, notRequired: !!p.notRequired })),
+      tasks: (tasksByProject.get(project.id) ?? []).map(toBoardTask),
+    }));
 
     return { index, details };
   }
 
-  /** Compute a single index row from already-loaded phase/task rows. */
+  /** Compute one index row (stats + lite arrays) from loaded phase/task rows. */
   private buildIndexRow(
     project: Project, phases: Phase[], tasks: Task[],
     plainPhases: PlainPhase[], plainTasks: PlainTask[], today: string,
   ) {
-    // Project totals exclude tasks in a not-required phase as well as
-    // individually not-required tasks (summarize handles the latter).
+    // Totals exclude not-required phases; summarize excludes not-required tasks.
     const notRequiredPhaseIds = new Set(plainPhases.filter(p => p.notRequired).map(p => p.id));
     const countableTasks = plainTasks.filter(t => !notRequiredPhaseIds.has(t.phaseId));
     const s = summarize(countableTasks, today);
@@ -222,8 +197,7 @@ export class ProjectsService {
   }
 
   async create(dto: CreateProjectDto) {
-    // Reject a duplicate by name (case- and whitespace-insensitive), so the
-    // same project can't be created twice.
+    // Reject a duplicate name (case- and whitespace-insensitive).
     const duplicate = await this.projectRepo
       .createQueryBuilder("p")
       .where("LOWER(TRIM(p.name)) = LOWER(TRIM(:name))", { name: dto.name })
@@ -233,17 +207,15 @@ export class ProjectsService {
     const weekOff = dto.weekOff && dto.weekOff.length ? dto.weekOff.slice(0, 2) : DEFAULT_WEEK_OFF;
     const disciplines = dto.disciplines ?? [];
     const id = newId();
-    // Phases/tasks come from the DB template (admins can edit it) filtered by
-    // discipline — e.g. [Software] leaves out the Vision and Automation phases.
-    // The business-day scheduling (computePlanned, inside buildTasks) is
-    // unchanged; only the source of the definitions moved to the database.
+    // Phases/tasks are generated from the (admin-editable) DB template, filtered
+    // by discipline, and scheduled by buildTasks. This is a one-time snapshot —
+    // later template edits never touch an existing project.
     const template = await this.templates.getForBuild(dto.templateId);
     const plainPhases = buildProjectPhases(template, disciplines);
     const plainTasks = buildTasks(dto.startDate, plainPhases, weekOff, template, disciplines);
 
-    // One transaction: a project row with phases but no tasks (or vice
-    // versa) is not a state the app can render, so a partial failure must
-    // roll the whole thing back rather than leave a broken project behind.
+    // Project + phases + tasks must all commit or none: a project without its
+    // phases/tasks can't be rendered.
     await this.dataSource.transaction(async (manager) => {
       const project = manager.create(Project, {
         id,
@@ -271,10 +243,8 @@ export class ProjectsService {
   }
 
   async update(id: string, dto: UpdateProjectDto) {
-    // Transactional for a sharper reason than create: syncTasks DELETEs the
-    // rows missing from the payload before saving the rest. Outside a
-    // transaction a failure between those two steps loses tasks
-    // irrecoverably — there's no second copy to re-sync from.
+    // Transactional because syncTasks/syncPhases DELETE the rows missing from
+    // the payload before saving the rest — a mid-way failure would lose data.
     await this.dataSource.transaction(async (manager) => {
       const project = await manager.findOneBy(Project, { id });
       if (!project) throw new NotFoundException(projectMessages.notFound);
@@ -295,8 +265,7 @@ export class ProjectsService {
         }
       }
 
-      // Bump "last updated" on any change — a task/phase edit counts too, so
-      // this saves the project row even when only dto.phases/tasks changed.
+      // Bump "last updated" on any change, including phase/task-only edits.
       project.updatedAt = new Date();
       await manager.save(project);
 
@@ -307,25 +276,18 @@ export class ProjectsService {
     return this.findOneDetail(id);
   }
 
-  // Phases/tasks cascade at the DB level (onDelete: "CASCADE" on their
-  // project FK — see the entities), so removing the project row is enough.
+  // Phases/tasks cascade-delete via their project FK, so deleting the row is enough.
   async remove(id: string) {
-    // `delete` issues one statement and reports rows affected, so the
-    // existence check comes free — the previous SELECT-then-DELETE pair
-    // cost an extra round trip and could still race between the two.
     const result = await this.projectRepo.delete({ id });
     if (!result.affected) throw new NotFoundException(projectMessages.notFound);
     return { id };
   }
 
-  // Full-sync semantics: the frontend always PATCHes the complete
-  // phases/tasks arrays it holds in React state (add/delete/reorder/edit
-  // all go through this same path — see ProjectDetail.tsx), so "replace
-  // wholesale" is the correct merge strategy, not a partial diff.
+  // Full sync: the frontend PATCHes the complete phases/tasks arrays it holds
+  // (add/delete/reorder/edit all go through here — see ProjectDetail.tsx), so we
+  // replace wholesale — upsert everything present, delete anything missing.
   private async syncPhases(manager: EntityManager, projectId: string, incoming: UpdateProjectDto["phases"]) {
     if (!incoming) return;
-    // Only the ids are needed to work out what to delete — selecting the
-    // whole row to read one column is wasted I/O on every save.
     const existing = await manager.find(Phase, { where: { projectId }, select: { id: true } });
     const incomingIds = new Set(incoming.map(p => p.id));
     const toDelete = existing.filter(p => !incomingIds.has(p.id)).map(p => p.id);
@@ -341,9 +303,8 @@ export class ProjectsService {
     const toDelete = existing.filter(t => !incomingIds.has(t.id)).map(t => t.id);
     if (toDelete.length) await manager.delete(Task, { id: In(toDelete) });
     await manager.save(incoming.map(t => {
-      // Multi-owner lives in `assignees`; `assigned_to` mirrors the first
-      // (or the legacy single value) so its FK to employees stays valid and
-      // older display code keeps working.
+      // Owners live in `assignees`; `assignedTo` mirrors the first so its FK to
+      // employees stays valid and single-avatar display keeps working.
       const assignees = Array.isArray(t.assignees) ? t.assignees.filter(Boolean) : (t.assignedTo ? [t.assignedTo] : []);
       const assignedTo = assignees[0] ?? null;
       return manager.create(Task, {

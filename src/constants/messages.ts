@@ -1,9 +1,6 @@
 /**
- * User-facing response text, mirroring Scout's `constants/messages.ts`.
- *
- * "Project not found." was previously repeated at three call sites in
- * projects.service alone — one place means one wording, and changing it
- * (or translating it later) is a single edit.
+ * User-facing response text in one place, so a message has one wording and is
+ * a single edit to change or translate.
  */
 export const projectMessages = {
   notFound: 'Project not found.',

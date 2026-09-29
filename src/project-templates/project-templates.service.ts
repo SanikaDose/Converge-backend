@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, type OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, IsNull, Repository } from "typeorm";
+import { DataSource, In, IsNull, Repository } from "typeorm";
 import { PhaseTemplate } from "../entities/phase-template.entity";
 import { TaskTemplate } from "../entities/task-template.entity";
 import { ProjectTemplate } from "../entities/project-template.entity";
@@ -148,7 +148,10 @@ export class ProjectTemplatesService implements OnModuleInit {
         const src = await manager.findOne(ProjectTemplate, { where: { id: dto.sourceTemplateId } });
         if (!src) throw new NotFoundException(templateMessages.templateNotFound);
         const srcPhases = await manager.find(PhaseTemplate, { where: { templateId: src.id }, order: { order: "ASC" } });
-        const srcTasks = await manager.find(TaskTemplate, { order: { order: "ASC" } });
+        const srcPhaseIds = srcPhases.map(p => p.id);
+        const srcTasks = srcPhaseIds.length
+          ? await manager.find(TaskTemplate, { where: { phaseTemplateId: In(srcPhaseIds) }, order: { order: "ASC" } })
+          : [];
         const tasksByPhase = new Map<string, TaskTemplate[]>();
         for (const t of srcTasks) {
           const b = tasksByPhase.get(t.phaseTemplateId); if (b) b.push(t); else tasksByPhase.set(t.phaseTemplateId, [t]);
@@ -206,11 +209,10 @@ export class ProjectTemplatesService implements OnModuleInit {
     const phases = await this.phaseRepo.find({ where: { templateId: id }, order: { order: "ASC" } });
     const phaseIds = phases.map(p => p.id);
     const tasks = phaseIds.length
-      ? await this.taskRepo.find({ order: { order: "ASC" } })
+      ? await this.taskRepo.find({ where: { phaseTemplateId: In(phaseIds) }, order: { order: "ASC" } })
       : [];
     const tasksByPhase = new Map<string, TaskTemplate[]>();
     for (const t of tasks) {
-      if (!phaseIds.includes(t.phaseTemplateId)) continue;
       const bucket = tasksByPhase.get(t.phaseTemplateId);
       if (bucket) bucket.push(t); else tasksByPhase.set(t.phaseTemplateId, [t]);
     }

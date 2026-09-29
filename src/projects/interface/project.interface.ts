@@ -2,14 +2,9 @@ import type { PlainPhase, PlainTask } from '../../utils/business-logic';
 import type { ProjectBucket, ProjectCharter, ProjectType, RelatedRepository, WeekDay } from '../../utils/types';
 
 /**
- * Response contracts for the projects endpoints, following Scout's
- * per-module `interface/` convention.
- *
- * These were previously implicit — every controller method returned
- * whatever the service happened to build, so the wire format existed only
- * as inference. Declaring it means a change to the shape the frontend
- * consumes has to be a deliberate edit here, and `tsc` catches a service
- * that stops matching.
+ * Response contracts for the projects endpoints. Declaring the wire format
+ * explicitly (rather than inferring it from whatever the service returns) makes
+ * a shape change a deliberate edit here, and lets `tsc` catch a drifting service.
  */
 
 /** One row of GET /projects — the lightweight portfolio index. */
