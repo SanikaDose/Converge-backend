@@ -29,7 +29,7 @@ export const TICKET_STATUSES: TicketStatus[] = ['Open', 'In Progress', 'Closed',
 
 export const MISC_TASK_STATUSES: MiscTaskStatus[] = ['To Do', 'In Progress', 'On Hold', 'Completed'];
 
-export const WORK_MODES: WorkMode[] = ['Office', 'Onsite', 'Both', 'WFH', 'Leave'];
+export const WORK_MODES: WorkMode[] = ['Office', 'Onsite', 'Both', 'WFH', 'Half Day', 'Leave'];
 
 export const TASK_STATUSES: TaskStatus[] = ['Not Started', 'In Progress', 'Pending Approval', 'Delayed', 'Blocked', 'Completed'];
 

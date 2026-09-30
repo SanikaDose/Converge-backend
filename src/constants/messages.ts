@@ -5,6 +5,10 @@
 export const projectMessages = {
   notFound: 'Project not found.',
   duplicateName: 'A project with this name already exists.',
+  adminOnly: 'Only an administrator can create or modify a project.',
+  invalidDate: 'startDate and endDate must be valid ISO dates (YYYY-MM-DD).',
+  endBeforeStart: 'endDate cannot be before startDate.',
+  charterRequired: 'A project charter is required for Solution projects.',
 };
 
 export const ticketMessages = {
@@ -12,6 +16,7 @@ export const ticketMessages = {
   projectNotFound: 'Project not found.',
   closedFinal: 'A closed ticket cannot be reopened.',
   reopenedFinal: 'A reopened ticket can only be closed.',
+  adminOnly: 'Only an administrator or lead can create or modify a ticket.',
 };
 
 export const templateMessages = {

@@ -284,8 +284,8 @@ export class EmailService {
         assignedTo: string;
         dueDate?: string | null;
         ticketUrl?: string;
-        /** "assigned" (default) or "closed" — switches the copy only. */
-        variant?: "assigned" | "closed";
+        /** "assigned" (default), "closed", or "reopened" — switches the copy only. */
+        variant?: "assigned" | "closed" | "reopened";
     }) {
         const {
             to,
@@ -299,20 +299,37 @@ export class EmailService {
             variant = "assigned",
         } = params;
 
-        const closed = variant === "closed";
-        const subject = closed
-            ? `Ticket closed — ${ticketNumber}: ${issue}`
-            : `New ticket assigned — ${ticketNumber}: ${issue}`;
-        const eyebrow = closed ? "Ticket closed" : "New ticket assigned";
-        const greeting = closed
-            ? `Hi ${this.esc(assignedTo)}, a ticket you're assigned to has been closed.`
-            : `Hi ${this.esc(assignedTo)}, a ticket has been assigned to you.`;
-        const ctaLabel = closed ? "View ticket &rarr;" : "Open ticket &rarr;";
-        const footerNote = closed
-            ? "You're receiving this because you were assigned this now-closed ticket in Converge Projects."
-            : "You're receiving this because you were assigned this ticket in Converge Projects.";
-        const textLead = closed ? "A ticket you're assigned to has been closed" : "New ticket assigned to you";
-        const eyebrowColor = closed ? "#16a34a" : "#2563eb";
+        const hi = `Hi ${this.esc(assignedTo)}`;
+        const copyByVariant = {
+            assigned: {
+                subject: `New ticket assigned — ${ticketNumber}: ${issue}`,
+                eyebrow: "New ticket assigned",
+                greeting: `${hi}, a ticket has been assigned to you.`,
+                ctaLabel: "Open ticket &rarr;",
+                footerNote: "You're receiving this because you were assigned this ticket in Converge Projects.",
+                textLead: "New ticket assigned to you",
+                eyebrowColor: "#2563eb",
+            },
+            closed: {
+                subject: `Ticket closed — ${ticketNumber}: ${issue}`,
+                eyebrow: "Ticket closed",
+                greeting: `${hi}, a ticket you're assigned to has been closed.`,
+                ctaLabel: "View ticket &rarr;",
+                footerNote: "You're receiving this because you were assigned this now-closed ticket in Converge Projects.",
+                textLead: "A ticket you're assigned to has been closed",
+                eyebrowColor: "#16a34a",
+            },
+            reopened: {
+                subject: `Ticket reopened — ${ticketNumber}: ${issue}`,
+                eyebrow: "Ticket reopened",
+                greeting: `${hi}, a ticket you're assigned to has been reopened.`,
+                ctaLabel: "Open ticket &rarr;",
+                footerNote: "You're receiving this because you were assigned this now-reopened ticket in Converge Projects.",
+                textLead: "A ticket you're assigned to has been reopened",
+                eyebrowColor: "#d97706",
+            },
+        };
+        const { subject, eyebrow, greeting, ctaLabel, footerNote, textLead, eyebrowColor } = copyByVariant[variant];
 
         try {
             await this.send({

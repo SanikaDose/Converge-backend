@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   IsArray,
+  IsDateString,
   IsIn,
   IsNotEmpty,
   IsObject,
@@ -52,12 +53,10 @@ export class CreateProjectDto {
   @IsOptional()
   owner?: string | null;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsDateString()
   startDate: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsDateString()
   endDate: string;
 
   @IsArray()

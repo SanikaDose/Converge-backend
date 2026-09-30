@@ -52,7 +52,12 @@ export class NotificationsService {
     return this.dispatch(ticket, employees, "closed");
   }
 
-  private async dispatch(ticket: Ticket, employees: Employee[], variant: "assigned" | "closed"): Promise<void> {
+  /** A ticket was reopened — email each related assignee + one team-space card. */
+  async notifyTicketReopened(ticket: Ticket, employees: Employee[]): Promise<void> {
+    return this.dispatch(ticket, employees, "reopened");
+  }
+
+  private async dispatch(ticket: Ticket, employees: Employee[], variant: "assigned" | "closed" | "reopened"): Promise<void> {
     const origin = this.frontendOrigin();
     const base = {
       ticketNumber: `TKT-${ticket.seq}`,

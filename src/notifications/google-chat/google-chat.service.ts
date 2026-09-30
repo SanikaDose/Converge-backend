@@ -8,8 +8,8 @@ export interface TicketChatNotificationParams {
   assignedTo: string;
   dueDate?: string | null;
   ticketUrl?: string;
-  /** "assigned" (default) or "closed" — switches the card copy only. */
-  variant?: "assigned" | "closed";
+  /** "assigned" (default), "closed", or "reopened" — switches the card copy only. */
+  variant?: "assigned" | "closed" | "reopened";
 }
 
 export interface MiscTaskChatNotificationParams {
@@ -104,7 +104,7 @@ export class GoogleChatService {
   async sendTicketChat(params: TicketChatNotificationParams): Promise<void> {
     const { ticketNumber, projectName, priority, issue, assignedTo, dueDate, ticketUrl, variant = "assigned" } = params;
     const closed = variant === "closed";
-    const headerTitle = closed ? "Ticket closed" : "New ticket assigned";
+    const headerTitle = variant === "closed" ? "Ticket closed" : variant === "reopened" ? "Ticket reopened" : "New ticket assigned";
 
     const widgets: Record<string, unknown>[] = [
       this.field("Issue", issue),

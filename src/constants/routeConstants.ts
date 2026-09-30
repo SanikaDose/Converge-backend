@@ -25,6 +25,8 @@ export const apiControllerPath = {
     // Bulk board fetch: index + full details in one request (declared before
     // the ':id' route so the literal 'board' segment matches first).
     board: 'board',
+    // Lean, server-computed payload for the dashboard (no per-task data).
+    dashboard: 'dashboard',
     create: '',
     getById: ':id',
     updateById: ':id',
@@ -36,6 +38,7 @@ export const apiControllerPath = {
     getList: '',
     create: '',
     updateById: ':id',
+    deleteById: ':id',
   },
 
   miscTasks: {

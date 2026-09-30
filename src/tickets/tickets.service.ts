@@ -110,6 +110,7 @@ export class TicketsService {
       throw new ConflictException(ticketMessages.reopenedFinal);
     }
     const wasClosed = ticket.status === "Closed";
+    const wasReopened = ticket.status === "Reopened";
     Object.assign(ticket, dto);
     // Keep the primary assignee mirror in step when assignees is edited.
     if (dto.assignees !== undefined) {
@@ -137,7 +138,22 @@ export class TicketsService {
       })().catch(error => console.error(`Failed to send close notifications for ticket ${saved.id}`, error));
     }
 
+    // Same, on the transition *into* Reopened — so reopening a ticket notifies
+    // just like closing does.
+    if (!wasReopened && saved.status === "Reopened") {
+      void (async () => {
+        const assignees = await this.loadAssignees(saved.assignees);
+        await this.notificationsService.notifyTicketReopened(saved, assignees);
+      })().catch(error => console.error(`Failed to send reopen notifications for ticket ${saved.id}`, error));
+    }
+
     return saved;
+  }
+
+  async remove(id: string): Promise<{ id: string }> {
+    const result = await this.ticketRepo.delete({ id });
+    if (!result.affected) throw new NotFoundException(ticketMessages.notFound);
+    return { id };
   }
 
   /** Resolve assignee ids to Employee rows (skips any that no longer exist). */

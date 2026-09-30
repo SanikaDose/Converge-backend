@@ -14,6 +14,12 @@ import { apiControllerPath } from "./constants/routeConstants";
 dns.setDefaultResultOrder("ipv4first");
 
 async function bootstrap() {
+  // In production, refuse to start on the in-repo dev JWT secret — otherwise any
+  // token signed with the public default would be accepted (forgeable admins).
+  if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET must be set in production (the in-repo default is dev-only).");
+  }
+
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
 
@@ -46,6 +52,9 @@ async function bootstrap() {
           if (!origin) return cb(null, true);
           cb(null, allowed.includes(origin.replace(/\/+$/, "")));
         },
+    // Let browsers cache the preflight for a day so every GET isn't preceded by
+    // its own OPTIONS round trip.
+    maxAge: 86400,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 

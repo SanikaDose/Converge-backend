@@ -17,7 +17,7 @@ export type TicketStatus = "Open" | "In Progress" | "Closed" | "Reopened";
 /** Miscellaneous (ad-hoc) task status — deliberately distinct from TaskStatus/TicketStatus. */
 export type MiscTaskStatus = "To Do" | "In Progress" | "On Hold" | "Completed";
 /** Where an employee worked on a given day — the daily scrum "Work Mode". */
-export type WorkMode = "Office" | "Onsite" | "Both" | "WFH" | "Leave";
+export type WorkMode = "Office" | "Onsite" | "Both" | "WFH" | "Half Day" | "Leave";
 /**
  * A generic reference to something worked on in a scrum update. Deliberately
  * NOT scoped to what's assigned to the person — a `label` snapshot is stored so

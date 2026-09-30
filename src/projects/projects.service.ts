@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { Project } from "../entities/project.entity";
@@ -12,8 +12,30 @@ import { todayISO, DEFAULT_WEEK_OFF, nextWorkingDay } from "../utils/date-utils"
 import { newId } from "../utils/template";
 import { ProjectTemplatesService } from "../project-templates/project-templates.service";
 import { projectMessages } from "../constants/messages";
+import type { ProjectType, ProjectCharter } from "../utils/types";
 import type { CreateProjectDto } from "./dto/create-project.dto";
 import type { UpdateProjectDto } from "./dto/update-project.dto";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Both dates must be valid ISO days and end must not precede start. */
+function assertValidDates(startDate: string, endDate: string): void {
+  if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)
+    || Number.isNaN(Date.parse(startDate)) || Number.isNaN(Date.parse(endDate))) {
+    throw new BadRequestException(projectMessages.invalidDate);
+  }
+  if (endDate < startDate) throw new BadRequestException(projectMessages.endBeforeStart);
+}
+
+/** A Solution project needs a charter with its key fields filled in (mirrors the UI). */
+function assertCharterForType(type: ProjectType, charter?: ProjectCharter | null): void {
+  if (type !== "Solution") return;
+  const c = charter;
+  const filled = !!c
+    && !!c.proposalNo?.trim() && !!c.poNo?.trim() && !!c.salesOwner?.trim()
+    && !!c.objective?.trim() && !!c.solutionOffered?.trim();
+  if (!filled) throw new BadRequestException(projectMessages.charterRequired);
+}
 
 function toPlainPhase(p: Phase): PlainPhase {
   return { id: p.id, name: p.name, critical: p.critical, order: p.order, notRequired: !!p.notRequired };
@@ -164,6 +186,77 @@ export class ProjectsService {
     return { index, details };
   }
 
+  /**
+   * Lean payload for the dashboard, computed server-side from three queries.
+   * Unlike the portfolio index it does NOT ship per-task data — the dashboard
+   * used that only to recompute stats, the trend chart, and the deadlines
+   * widget client-side over ~2000 tasks. All of that is computed here instead:
+   *  - `projects`: each project's live stats + the phase rows the cards render,
+   *  - `taskCompletions` + `totalTaskCount`: the inputs for the % complete trend,
+   *  - `deadlines`: a bounded set of the nearest open task deadlines.
+   */
+  async findAllDashboard() {
+    const projects = await this.projectRepo.find({ order: { createdAt: "DESC" } });
+    if (!projects.length) return { projects: [], taskCompletions: [], totalTaskCount: 0, deadlines: [] };
+
+    const projectIds = projects.map(p => p.id);
+    const [allPhases, allTasks] = await Promise.all([
+      this.phaseRepo.find({ where: { projectId: In(projectIds) }, order: { order: "ASC" } }),
+      this.taskRepo.find({
+        where: { projectId: In(projectIds) },
+        order: { order: "ASC" },
+        select: {
+          id: true, projectId: true, phaseId: true, name: true, status: true,
+          plannedStart: true, plannedFinish: true, actualStart: true, actualFinish: true,
+        },
+      }),
+    ]);
+
+    const phasesByProject = groupBy(allPhases, p => p.projectId);
+    const tasksByProject = groupBy(allTasks, t => t.projectId);
+    const projectNameById = new Map(projects.map(p => [p.id, p.name]));
+    const today = todayISO();
+
+    const projectRows = projects.map((project) => {
+      const plainPhases = (phasesByProject.get(project.id) ?? []).map(toPlainPhase);
+      const plainTasks = (tasksByProject.get(project.id) ?? []).map(toPlainTask);
+      const notRequiredPhaseIds = new Set(plainPhases.filter(p => p.notRequired).map(p => p.id));
+      const s = summarize(plainTasks.filter(t => !notRequiredPhaseIds.has(t.phaseId)), today);
+      const phaseRows = phaseSummaries(plainPhases, plainTasks, today, project.startDate);
+      return {
+        id: project.id, name: project.name, type: project.type, customer: project.customer,
+        location: project.location, owner: project.ownerId, startDate: project.startDate,
+        endDate: project.endDate, updatedAt: project.updatedAt ? project.updatedAt.toISOString() : null,
+        financialYear: project.financialYear,
+        pct: s.pct, completed: s.completed, total: s.total, delayed: s.delayed, plannedEnd: s.plannedEnd,
+        bucket: projectStatusFromPhases(phaseRows),
+        // Only the fields a project card's progress bar reads.
+        phases: phaseRows.map(p => ({
+          id: p.id, name: p.name, critical: p.critical, notRequired: p.notRequired,
+          total: p.total, completed: p.completed, delayed: p.delayed, color: p.color,
+        })),
+      };
+    });
+
+    // Trend chart inputs: every finish date, and the total task count (denominator).
+    const taskCompletions = allTasks.filter(t => t.actualFinish).map(t => t.actualFinish as string);
+    const totalTaskCount = allTasks.length;
+
+    // Deadlines widget: nearest open task deadlines only (30 most-overdue + 30
+    // soonest-upcoming), sorted ascending — the widget shows a few of each.
+    // Out-of-scope work (Not Required, or in a not-required phase) is excluded,
+    // matching how progress/delayed counts treat it everywhere else.
+    const notRequiredPhaseIds = new Set(allPhases.filter(p => p.notRequired).map(p => p.id));
+    const open = allTasks
+      .filter(t => t.status !== "Completed" && t.status !== "Not Required" && !notRequiredPhaseIds.has(t.phaseId))
+      .map(t => ({ taskName: t.name, projectId: t.projectId, projectName: projectNameById.get(t.projectId) ?? "", plannedFinish: t.plannedFinish }))
+      .sort((a, b) => a.plannedFinish.localeCompare(b.plannedFinish));
+    const overdue = open.filter(d => d.plannedFinish < today).slice(0, 30);
+    const upcoming = open.filter(d => d.plannedFinish >= today).slice(0, 30);
+
+    return { projects: projectRows, taskCompletions, totalTaskCount, deadlines: [...overdue, ...upcoming] };
+  }
+
   /** Compute one index row (stats + lite arrays) from loaded phase/task rows. */
   private buildIndexRow(
     project: Project, phases: Phase[], tasks: Task[],
@@ -197,6 +290,9 @@ export class ProjectsService {
   }
 
   async create(dto: CreateProjectDto) {
+    assertValidDates(dto.startDate, dto.endDate);
+    assertCharterForType(dto.type, dto.charter);
+
     // Reject a duplicate name (case- and whitespace-insensitive).
     const duplicate = await this.projectRepo
       .createQueryBuilder("p")
@@ -266,6 +362,13 @@ export class ProjectsService {
         if (dto.meta.weekOff !== undefined) project.weekOff = dto.meta.weekOff;
         if (dto.meta.relatedRepositories !== undefined) {
             project.relatedRepositories = dto.meta.relatedRepositories;
+        }
+        if (dto.meta.charter !== undefined) project.charter = dto.meta.charter;
+        // The meta patch isn't a validated class, so guard the dates here: a
+        // malformed one used to reach the date math and 500; end-before-start
+        // used to save silently.
+        if (dto.meta.startDate !== undefined || dto.meta.endDate !== undefined) {
+          assertValidDates(project.startDate, project.endDate);
         }
       }
 
