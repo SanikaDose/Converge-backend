@@ -81,6 +81,7 @@ export class ProjectTemplatesService implements OnModuleInit {
       const phaseId = newId();
       phases.push(this.phaseRepo.create({
         id: phaseId, templateId, name: p.phase, order: pi, critical: p.critical, discipline: p.discipline ?? null,
+        weekStart: p.weekStart, durationWeeks: p.durationWeeks,
       }));
       p.tasks.forEach(([name, dayOffset, duration, description], ti) => {
         tasks.push(this.taskRepo.create({
@@ -160,6 +161,7 @@ export class ProjectTemplatesService implements OnModuleInit {
           const newPhaseId = newId();
           await manager.save(manager.create(PhaseTemplate, {
             id: newPhaseId, templateId, name: ph.name, order: ph.order, critical: ph.critical, discipline: ph.discipline,
+            weekStart: ph.weekStart, durationWeeks: ph.durationWeeks,
           }));
           const copies = (tasksByPhase.get(ph.id) ?? []).map(t => manager.create(TaskTemplate, {
             id: newId(), phaseTemplateId: newPhaseId, name: t.name, description: t.description ?? "",
@@ -218,6 +220,7 @@ export class ProjectTemplatesService implements OnModuleInit {
     }
     return phases.map(p => ({
       id: p.id, name: p.name, order: p.order, critical: p.critical, discipline: p.discipline,
+      weekStart: p.weekStart, durationWeeks: p.durationWeeks,
       tasks: (tasksByPhase.get(p.id) ?? []).map(t => ({
         id: t.id, name: t.name, description: t.description ?? "", dayOffset: t.dayOffset, duration: t.duration,
         criticalPoints: t.criticalPoints ?? [], order: t.order,
@@ -232,6 +235,8 @@ export class ProjectTemplatesService implements OnModuleInit {
       phase: p.name,
       critical: p.critical,
       discipline: p.discipline ?? undefined,
+      weekStart: p.weekStart,
+      durationWeeks: p.durationWeeks,
       tasks: p.tasks.map(t => [t.name, t.dayOffset, t.duration, t.description, t.criticalPoints] as [string, number, number, string, string[]]),
     }));
   }
@@ -246,6 +251,7 @@ export class ProjectTemplatesService implements OnModuleInit {
     await this.phaseRepo.save(this.phaseRepo.create({
       id: newId(), templateId, name: dto.name, order: nextOrder,
       critical: dto.critical ?? false, discipline: dto.discipline ?? null,
+      weekStart: dto.weekStart ?? 1, durationWeeks: dto.durationWeeks ?? 1,
     }));
     return this.getTemplate(templateId);
   }
@@ -256,6 +262,8 @@ export class ProjectTemplatesService implements OnModuleInit {
     if (dto.name !== undefined) phase.name = dto.name;
     if (dto.critical !== undefined) phase.critical = dto.critical;
     if (dto.discipline !== undefined) phase.discipline = dto.discipline;
+    if (dto.weekStart !== undefined) phase.weekStart = dto.weekStart;
+    if (dto.durationWeeks !== undefined) phase.durationWeeks = dto.durationWeeks;
     await this.phaseRepo.save(phase);
     return this.getTemplate(phase.templateId ?? undefined);
   }
@@ -283,7 +291,8 @@ export class ProjectTemplatesService implements OnModuleInit {
     const siblings = await this.taskRepo.find({ where: { phaseTemplateId: phaseId }, select: { order: true } });
     const nextOrder = siblings.length ? Math.max(...siblings.map(s => s.order)) + 1 : 0;
     await this.taskRepo.save(this.taskRepo.create({
-      id: newId(), phaseTemplateId: phaseId, name: dto.name, description: dto.description ?? "", dayOffset: dto.dayOffset, duration: dto.duration,
+      id: newId(), phaseTemplateId: phaseId, name: dto.name, description: dto.description ?? "",
+      dayOffset: dto.dayOffset ?? 0, duration: dto.duration ?? 1,
       criticalPoints: dto.criticalPoints ?? [], order: nextOrder,
     }));
     return this.getTemplate(phase.templateId ?? undefined);

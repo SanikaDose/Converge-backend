@@ -153,4 +153,8 @@ export interface TemplatePhase {
   tasks: TemplateTaskTuple[];
   /** Omitted for common phases (always generated); set for the Software/Vision/Automation phases. */
   discipline?: PhaseDiscipline;
+  /** 1-based project week this phase starts in (Week 1 = the project's first week). */
+  weekStart: number;
+  /** How many whole project weeks the phase (and all its tasks) occupies. */
+  durationWeeks: number;
 }

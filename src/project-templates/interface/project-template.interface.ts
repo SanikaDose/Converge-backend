@@ -16,6 +16,10 @@ export interface PhaseTemplateResponse {
   order: number;
   critical: boolean;
   discipline: PhaseDiscipline | null;
+  /** 1-based project week the phase starts in. */
+  weekStart: number;
+  /** Whole project weeks the phase occupies. */
+  durationWeeks: number;
   tasks: TaskTemplateResponse[];
 }
 

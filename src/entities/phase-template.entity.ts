@@ -32,6 +32,14 @@ export class PhaseTemplate {
   @Column("int")
   order: number;
 
+  /** 1-based project week this phase starts in (7-day project weeks). */
+  @Column("int", { name: "week_start", default: 1 })
+  weekStart: number;
+
+  /** How many whole project weeks the phase (and all its tasks) occupies. */
+  @Column("int", { name: "duration_weeks", default: 1 })
+  durationWeeks: number;
+
   @Column("boolean", { default: false })
   critical: boolean;
 

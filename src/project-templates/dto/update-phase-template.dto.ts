@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from "class-validator";
 import { PHASE_DISCIPLINES } from "../../constants/enums";
 import type { PhaseDiscipline } from "../../utils/types";
 
@@ -16,4 +16,16 @@ export class UpdatePhaseTemplateDto {
   @IsIn(PHASE_DISCIPLINES)
   @IsOptional()
   discipline?: PhaseDiscipline | null;
+
+  @IsInt()
+  @Min(1)
+  @Max(520)
+  @IsOptional()
+  weekStart?: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(520)
+  @IsOptional()
+  durationWeeks?: number;
 }
