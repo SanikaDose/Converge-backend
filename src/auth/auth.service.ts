@@ -27,7 +27,7 @@ interface ResetTokenPayload { sub: string; purpose: "pwd_reset"; }
  * matches so a bad employee code costs the same wall-clock time as a bad
  * password — otherwise the response time alone reveals which codes exist.
  */
-const DUMMY_HASH = bcrypt.hashSync("__no_such_account__", 10);
+const DUMMY_HASH = bcrypt.hashSync("__no_such_account__", Config.BCRYPT_SALT_ROUNDS);
 
 @Injectable()
 export class AuthService {
@@ -56,6 +56,20 @@ export class AuthService {
     // half was wrong would let them enumerate valid accounts.
     if (!employee || !employee.passwordHash || !ok) {
       throw new UnauthorizedException(authMessages.invalidCredentials);
+    }
+
+    // Transparent re-hash: older passwords were stored at a higher bcrypt cost,
+    // which makes every future login of theirs slow. Now that we hold the plain
+    // password and know it's correct, re-hash it at the current (cheaper) factor
+    // so subsequent logins are fast. Only touches rows above the target cost; a
+    // save failure must not fail an otherwise-valid login, so it's best-effort.
+    if (bcrypt.getRounds(employee.passwordHash) !== Config.BCRYPT_SALT_ROUNDS) {
+      try {
+        employee.passwordHash = await bcrypt.hash(dto.password, Config.BCRYPT_SALT_ROUNDS);
+        await this.employeeRepo.update(employee.id, { passwordHash: employee.passwordHash });
+      } catch {
+        /* keep the existing hash — the user is still authenticated this time */
+      }
     }
 
     const profile = toAuthedUser(employee);

@@ -25,6 +25,7 @@ import { MiscTasksModule } from "./misc-tasks/misc-tasks.module";
 import { NotificationFeedModule } from "./notification-feed/notification-feed.module";
 import { ScrumModule } from "./scrum/scrum.module";
 import { SeedModule } from "./seed/seed.module";
+import { HealthController } from "./health/health.controller";
 
 @Module({
   imports: [
@@ -68,5 +69,6 @@ import { SeedModule } from "./seed/seed.module";
     ScrumModule,
     SeedModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
