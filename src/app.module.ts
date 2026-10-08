@@ -44,6 +44,17 @@ import { SeedModule } from "./seed/seed.module";
       ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
       entities: [Team, Employee, Project, Phase, Task, Ticket, DashboardBaseline, ProjectTemplate, PhaseTemplate, TaskTemplate, MiscTask, Notification, ScrumEntry],
       synchronize: process.env.DB_SYNCHRONIZE === "true",
+      // node-postgres pool tuning. The DB is remote, so re-opening a connection
+      // costs a full TLS+auth round trip (~1.5–2.5s) — and pg's default closes
+      // idle connections after 10s, so a login/dashboard after any quiet spell
+      // paid that reconnect every time (the "login is slow" symptom). Keeping
+      // idle connections open (idleTimeoutMillis: 0) plus TCP keep-alive means
+      // the pool stays warm and requests after idle reuse a live connection.
+      extra: {
+        max: 10,
+        idleTimeoutMillis: 0,
+        keepAlive: true,
+      },
     }),
     AuthModule,
     ProjectTemplatesModule,
